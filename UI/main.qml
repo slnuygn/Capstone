@@ -18,25 +18,9 @@ ApplicationWindow {
     property string currentFolder: ""
     property string saveMessage: ""
     property string fieldtripPath: ""
-    // Properties for data viewer
-    property var dataViewerWindow: null
     // Properties for menu states
     property bool fileMenuOpen: false
     property bool matlabSubmenuOpen: false
-
-    function openDataViewerWindow(dataName) {
-        if (dataViewerWindow) {
-            dataViewerWindow.close()
-        }
-        
-        var component = Qt.createComponent("data_viewer.qml")
-        if (component.status === Component.Ready) {
-            dataViewerWindow = component.createObject(window, {
-                "dataName": dataName
-            })
-            dataViewerWindow.show()
-        }
-    }
 
     // Connect to the matlabExecutor signal
     Connections {
@@ -52,11 +36,7 @@ ApplicationWindow {
                 fieldtripPathRefreshTimer.start()
             }
         }
-        function onDataInfoReady(dataInfo) {
-            if (dataViewerWindow) {
-                dataViewerWindow.dataInfo = dataInfo
-            }
-        }
+
     }
 
     // JavaScript functions for channel selection

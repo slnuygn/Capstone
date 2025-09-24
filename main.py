@@ -8,7 +8,6 @@ from PyQt6.QtCore import QStandardPaths
 # Import our custom classes
 from file_browser import FileBrowser
 from matlab_executor import MatlabExecutor
-from spreadsheet_model import SpreadsheetModel, register_spreadsheet_model
 
 # Function to get the resource path (works for both development and PyInstaller)
 def resource_path(relative_path):
@@ -25,19 +24,15 @@ app = QApplication(sys.argv)  # Changed to QApplication for widget support
 # Register classes with QML
 qmlRegisterType(MatlabExecutor, "MatlabExecutor", 1, 0, "MatlabExecutor")
 qmlRegisterType(FileBrowser, "FileBrowser", 1, 0, "FileBrowser")
-register_spreadsheet_model()
+
 
 # Create instances
 matlab_executor = MatlabExecutor()
 file_browser = FileBrowser()
-spreadsheet_model = SpreadsheetModel()
 
 # Import and create ICA viewer
 from ica_viewer import ICAComponentViewer
 ica_viewer = ICAComponentViewer()
-
-# Connect signals
-matlab_executor.updateSpreadsheetModel.connect(spreadsheet_model.setSpreadsheetData)
 
 engine = QQmlApplicationEngine()
 engine.quit.connect(app.quit)
@@ -45,7 +40,6 @@ engine.quit.connect(app.quit)
 # Make instances available to QML
 engine.rootContext().setContextProperty("matlabExecutor", matlab_executor)
 engine.rootContext().setContextProperty("fileBrowser", file_browser)
-engine.rootContext().setContextProperty("spreadsheetModel", spreadsheet_model)
 engine.rootContext().setContextProperty("icaViewer", ica_viewer)
 
 engine.load(QUrl.fromLocalFile(resource_path('UI/main.qml')))
