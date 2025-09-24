@@ -14,13 +14,34 @@ ApplicationWindow {
 
     // Property to hold MATLAB output
     property string matlabOutput: "Click 'Run MATLAB' to execute script"
-    property var folderContents: []
-    property string currentFolder: ""
     property string saveMessage: ""
     property string fieldtripPath: ""
-    // Properties for menu states
-    property bool fileMenuOpen: false
-    property bool matlabSubmenuOpen: false
+    
+    // FileBrowser component
+    FileBrowserUI {
+        id: fileBrowserComponent
+    }
+    
+    // Connections for FileBrowser component
+    Connections {
+        target: fileBrowserComponent
+        function onFieldtripPathRequested() {
+            window.fileMenuOpen = false
+            window.matlabSubmenuOpen = false
+        }
+        
+        function onDataDirectoryUpdateRequested(path) {
+            if (matlabExecutor) {
+                matlabExecutor.updateDataDirectory(path)
+            }
+        }
+        
+        function onFieldtripPathUpdateRequested(path) {
+            if (matlabExecutor) {
+                matlabExecutor.updateFieldtripPath(path)
+            }
+        }
+    }
 
     // Connect to the matlabExecutor signal
     Connections {
@@ -91,215 +112,278 @@ ApplicationWindow {
         }
     }
 
-    // Connect to the fileBrowser signals
-    Connections {
-        target: fileBrowser
-        function onFolderContentsChanged(contents) {
-            window.folderContents = contents
-        }
-        function onCurrentFolderChanged(folder) {
-            window.currentFolder = folder
-        }
-    }
 
-    // Function to refresh folder contents
-    function refreshFolderContents() {
-        if (fileBrowser) {
-            fileBrowser.refreshCurrentFolder()
-        }
-    }
 
-    // File Dialog for folder selection
-    FolderDialog {
-        id: folderDialog
-        title: "Select Folder"
-        currentFolder: fileBrowser ? "file:///" + fileBrowser.getDesktopPath() : "file:///C:/Users"
-        
-        onAccepted: {
-            if (fileBrowser) {
-                fileBrowser.loadFolder(selectedFolder.toString())
-                // Also update the MATLAB script with the selected folder
-                if (matlabExecutor) {
-                    matlabExecutor.updateDataDirectory(selectedFolder.toString())
-                }
-            }
-        }
-    }
 
-    // FieldTrip Path Dialog
-    FolderDialog {
-        id: fieldtripDialog
-        title: "Select FieldTrip Installation Folder"
-        currentFolder: "file:///C:/Program Files/MATLAB"
-        
-        onAccepted: {
-            if (matlabExecutor) {
-                matlabExecutor.updateFieldtripPath(selectedFolder.toString())
-            }
-        }
-    }
 
     // Top Menu Bar
-    Rectangle {
+    TopMenu {
         id: topMenuBar
         width: parent.width
-        height: 30
-        color: "#f8f9fa"
         
+        onFieldtripDialogRequested: {
+            fileBrowserComponent.fieldtripDialog.open()
+        }
+        
+        onFolderDialogRequested: {
+            fileBrowserComponent.folderDialog.open()
+        }
+        
+        onCreateFunctionRequested: {
+            console.log("Create function requested")
+            // TODO: Implement function creation
+        }
+        
+        onCreateScriptRequested: {
+            console.log("Create script requested")
+            // TODO: Implement script creation
+        }
+        
+        onMenuStateChanged: function(fileMenuOpen, matlabSubmenuOpen) {
+            fileDropdownMenu.visible = fileMenuOpen
+            matlabSubmenu.visible = matlabSubmenuOpen && fileMenuOpen
+        }
+    }
+
+    // File Menu Dropdown (positioned absolutely at window level)
+    Rectangle {
+        id: fileDropdownMenu
+        x: 10  // Position relative to File menu button
+        y: topMenuBar.height  // Position directly below the menu bar
+        width: 220
+        height: 110
+        color: "white"
+        border.color: "#ccc"
+        border.width: 1
+        radius: 4
+        visible: false
+        z: 10000
+
+        // Drop shadow effect
         Rectangle {
-            width: parent.width
-            height: 1
-            color: "#dee2e6"
-            anchors.bottom: parent.bottom
+            anchors.fill: parent
+            anchors.topMargin: 2
+            anchors.leftMargin: 2
+            color: "#00000020"
+            radius: 4
+            z: -1
         }
 
-        Row {
-            anchors.left: parent.left
-            anchors.leftMargin: 10
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 20
+        Column {
+            anchors.fill: parent
+            anchors.margins: 2
 
-            // File Menu
+            // Add MATLAB function/script
             Rectangle {
-                width: fileMenuText.width + 20
-                height: 25
-                color: fileMenuArea.containsMouse || window.fileMenuOpen ? "#d1d3d4" : "transparent"
-                radius: 3
+                width: parent.width
+                height: 35
+                color: matlabFunctionMouseArea.containsMouse || matlabSubmenu.visible ? "#f8f9fa" : "white"
 
+                Row {
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.leftMargin: 10
+                    spacing: 10
+
+                    Text {
+                        text: "Add MATLAB function/script..."
+                        font.pixelSize: 12
+                        color: "#333"
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                }
+
+                // Arrow indicator for submenu
                 Text {
-                    id: fileMenuText
-                    text: "File"
-                    anchors.centerIn: parent
+                    text: "▶"
                     font.pixelSize: 12
-                    color: "#333"
+                    color: "#666"
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.right: parent.right
+                    anchors.rightMargin: 15
                 }
 
                 MouseArea {
-                    id: fileMenuArea
+                    id: matlabFunctionMouseArea
                     anchors.fill: parent
                     hoverEnabled: true
                     onClicked: {
-                        window.fileMenuOpen = !window.fileMenuOpen
+                        matlabSubmenu.visible = !matlabSubmenu.visible
+                        topMenuBar.matlabSubmenuOpen = matlabSubmenu.visible
                     }
                 }
             }
 
-            // Edit Menu
+            // Change FieldTrip path
             Rectangle {
-                width: editMenuText.width + 20
-                height: 25
-                color: editMenuArea.containsMouse ? "#d1d3d4" : "transparent"
-                radius: 3
+                width: parent.width
+                height: 35
+                color: changeFieldtripMouseArea.containsMouse ? "#f8f9fa" : "white"
 
-                Text {
-                    id: editMenuText
-                    text: "Edit"
-                    anchors.centerIn: parent
-                    font.pixelSize: 12
-                    color: "#333"
+                Row {
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.leftMargin: 10
+                    spacing: 10
+
+                    Text {
+                        text: "Change FieldTrip path..."
+                        font.pixelSize: 12
+                        color: "#333"
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
                 }
 
                 MouseArea {
-                    id: editMenuArea
+                    id: changeFieldtripMouseArea
                     anchors.fill: parent
                     hoverEnabled: true
                     onClicked: {
-                        console.log("Edit menu clicked")
-                        // TODO: Implement edit menu dropdown
+                        topMenuBar.closeMenus()
+                        fileBrowserComponent.fieldtripDialog.open()
                     }
                 }
             }
 
-            // View Menu
+            // Change data path
             Rectangle {
-                width: viewMenuText.width + 20
-                height: 25
-                color: viewMenuArea.containsMouse ? "#d1d3d4" : "transparent"
-                radius: 3
+                width: parent.width
+                height: 35
+                color: changeDataPathMouseArea.containsMouse ? "#f8f9fa" : "white"
 
-                Text {
-                    id: viewMenuText
-                    text: "View"
-                    anchors.centerIn: parent
-                    font.pixelSize: 12
-                    color: "#333"
-                }
+                Row {
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.leftMargin: 10
+                    spacing: 10
 
-                MouseArea {
-                    id: viewMenuArea
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    onClicked: {
-                        console.log("View menu clicked")
-                        // TODO: Implement view menu dropdown
+                    Text {
+                        text: "Change data path..."
+                        font.pixelSize: 12
+                        color: "#333"
+                        anchors.verticalCenter: parent.verticalCenter
                     }
                 }
-            }
-
-            // Tools Menu
-            Rectangle {
-                width: toolsMenuText.width + 20
-                height: 25
-                color: toolsMenuArea.containsMouse ? "#d1d3d4" : "transparent"
-                radius: 3
-
-                Text {
-                    id: toolsMenuText
-                    text: "Tools"
-                    anchors.centerIn: parent
-                    font.pixelSize: 12
-                    color: "#333"
-                }
 
                 MouseArea {
-                    id: toolsMenuArea
+                    id: changeDataPathMouseArea
                     anchors.fill: parent
                     hoverEnabled: true
                     onClicked: {
-                        console.log("Tools menu clicked")
-                        // TODO: Implement tools menu dropdown
-                    }
-                }
-            }
-
-            // Help Menu
-            Rectangle {
-                width: helpMenuText.width + 20
-                height: 25
-                color: helpMenuArea.containsMouse ? "#d1d3d4" : "transparent"
-                radius: 3
-
-                Text {
-                    id: helpMenuText
-                    text: "Help"
-                    anchors.centerIn: parent
-                    font.pixelSize: 12
-                    color: "#333"
-                }
-
-                MouseArea {
-                    id: helpMenuArea
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    onClicked: {
-                        console.log("Help menu clicked")
-                        // TODO: Implement help menu dropdown
+                        topMenuBar.closeMenus()
+                        fileBrowserComponent.folderDialog.open()
                     }
                 }
             }
         }
     }
 
-    // Global MouseArea to close file menu when clicking outside
-    MouseArea {
-        anchors.fill: parent
-        onClicked: {
-            if (window.fileMenuOpen) {
-                window.fileMenuOpen = false
-                window.matlabSubmenuOpen = false
+    // MATLAB Submenu
+    Rectangle {
+        id: matlabSubmenu
+        x: fileDropdownMenu.x + fileDropdownMenu.width
+        y: fileDropdownMenu.y
+        width: 180
+        height: 80
+        color: "white"
+        border.color: "#ccc"
+        border.width: 1
+        radius: 4
+        visible: false
+        z: 10001
+
+        // Drop shadow effect
+        Rectangle {
+            anchors.fill: parent
+            anchors.topMargin: 2
+            anchors.leftMargin: 2
+            color: "#00000020"
+            radius: 4
+            z: -1
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            onClicked: {
+                // Prevent closing when clicking inside submenu
             }
         }
+
+        Column {
+            anchors.fill: parent
+            anchors.margins: 2
+
+            // Create function
+            Rectangle {
+                width: parent.width
+                height: 35
+                color: createFunctionMouseArea.containsMouse ? "#f8f9fa" : "white"
+
+                Text {
+                    text: "Function"
+                    font.pixelSize: 12
+                    color: "#333"
+                    anchors.left: parent.left
+                    anchors.leftMargin: 10
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
+                MouseArea {
+                    id: createFunctionMouseArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked: {
+                        topMenuBar.closeMenus()
+                        console.log("Create function requested")
+                    }
+                }
+            }
+
+            // Create script
+            Rectangle {
+                width: parent.width
+                height: 35
+                color: createScriptMouseArea.containsMouse ? "#f8f9fa" : "white"
+
+                Text {
+                    text: "Script"
+                    font.pixelSize: 12
+                    color: "#333"
+                    anchors.left: parent.left
+                    anchors.leftMargin: 10
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
+                MouseArea {
+                    id: createScriptMouseArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked: {
+                        topMenuBar.closeMenus()
+                        console.log("Create script requested")
+                    }
+                }
+            }
+        }
+    }
+
+    // MouseArea to close menus when clicking outside
+    MouseArea {
+        anchors.fill: parent
+        anchors.topMargin: topMenuBar.height
         z: -10
+        onClicked: {
+            topMenuBar.closeMenus()
+            fileDropdownMenu.visible = false
+            matlabSubmenu.visible = false
+        }
+        
+        // Allow scroll events to pass through to underlying ScrollView
+        propagateComposedEvents: true
+        
+        onWheel: function(wheel) {
+            wheel.accepted = false  // Let the ScrollView handle wheel events
+        }
     }
 
     // Tab bar at the top
@@ -346,15 +430,15 @@ ApplicationWindow {
                 }
             }
 
-            // Tab 2 - Processing
+            // Tab 2 - Feature Extraction Analysis
             Rectangle {
-                id: processingTab
+                id: featureExtractionAnalysisTab
                 width: 120
                 height: parent.height
                 color: contentArea.currentIndex === 1 ? "white" : "#e0e0e0"
 
                 Text {
-                    text: "Processing"
+                    text: "Feature Extraction Analysis"
                     anchors.centerIn: parent
                     font.pixelSize: 14
                     color: "#333"
@@ -367,15 +451,15 @@ ApplicationWindow {
                 }
             }
 
-            // Tab 3 - Classifier
+            // Tab 3 - Classification
             Rectangle {
-                id: classifierTab
+                id: classificationTab
                 width: 120
                 height: parent.height
                 color: contentArea.currentIndex === 2 ? "white" : "#e0e0e0"
 
                 Text {
-                    text: "Classifier"
+                    text: "Classification"
                     anchors.centerIn: parent
                     font.pixelSize: 14
                     color: "#333"
@@ -414,11 +498,10 @@ ApplicationWindow {
                 source: "preprocessing_page.qml"
                 
                 onLoaded: {
-                    item.currentFolder = Qt.binding(function() { return window.currentFolder })
-                    item.folderContents = Qt.binding(function() { return window.folderContents })
+                    item.currentFolder = Qt.binding(function() { return fileBrowserComponent.currentFolder })
+                    item.folderContents = Qt.binding(function() { return fileBrowserComponent.folderContents })
                     item.fieldtripPath = Qt.binding(function() { return window.fieldtripPath })
                     item.saveMessage = Qt.binding(function() { return window.saveMessage })
-                    item.contextMenu = contextMenu  // Pass context menu reference
                     
                     // Initialize eventvalue dropdown with current values from MATLAB file
                     if (matlabExecutor) {
@@ -440,21 +523,21 @@ ApplicationWindow {
                         item.setInitialDftfilter(currentDftfilter, currentDftfreq)
                     }
                     
-                    item.openFolderDialog.connect(function() { folderDialog.open() })
-                    item.openFieldtripDialog.connect(function() { fieldtripDialog.open() })
+                    item.openFolderDialog.connect(function() { fileBrowserComponent.folderDialog.open() })
+                    item.openFieldtripDialog.connect(function() { fileBrowserComponent.fieldtripDialog.open() })
                     item.requestSaveConfiguration.connect(function(prestimValue, poststimValue, trialfunValue, eventtypeValue, selectedChannels, selectedEventvalues, demeanEnabled, baselineStart, baselineEnd, dftfilterEnabled, dftfreqStart, dftfreqEnd) {
                         matlabExecutor.saveConfiguration(prestimValue, poststimValue, trialfunValue, eventtypeValue, selectedChannels, selectedEventvalues, demeanEnabled, baselineStart, baselineEnd, dftfilterEnabled, dftfreqStart, dftfreqEnd)
                     })
                     item.refreshFileExplorer.connect(function() { 
-                        refreshFolderContents()
+                        fileBrowserComponent.refreshFolderContents()
                     })
                 }
             }
         }
 
-        // Tab 2 Content - Processing
+        // Tab 2 Content - Feature Extraction Analysis
         Item {
-            id: processingPage
+            id: featureExtractionAnalysisPage
             anchors.fill: parent
             anchors.margins: 20
             visible: contentArea.currentIndex === 1
@@ -467,9 +550,9 @@ ApplicationWindow {
             }
         }
 
-        // Tab 3 Content - Classifier
+        // Tab 3 Content - Classification
         Item {
-            id: classifierPage
+            id: classificationPage
             anchors.fill: parent
             anchors.margins: 20
             visible: contentArea.currentIndex === 2
@@ -479,454 +562,6 @@ ApplicationWindow {
                 text: "hello world 3"
                 font.pixelSize: 24
                 color: "#333"
-            }
-        }
-    }
-
-    // File Menu Dropdown (positioned absolutely at window level)
-    Rectangle {
-        id: fileDropdownMenu
-        x: 10  // Position relative to File menu button
-        y: 25  // Position directly at the bottom of the File button (no gap)
-        width: 220
-        height: 110
-        color: "white"
-        border.color: "#ccc"
-        border.width: 1
-        radius: 4
-        visible: window.fileMenuOpen
-        z: 10000
-
-        // Drop shadow effect
-        Rectangle {
-            anchors.fill: parent
-            anchors.topMargin: 2
-            anchors.leftMargin: 2
-            color: "#00000020"
-            radius: 4
-            z: -1
-        }
-
-        Column {
-            anchors.fill: parent
-            anchors.margins: 2
-
-            // Add MATLAB function/script
-            Rectangle {
-                width: parent.width
-                height: 35
-                color: matlabFunctionMouseArea.containsMouse || window.matlabSubmenuOpen ? "#f8f9fa" : "white"
-
-                Row {
-                    anchors.left: parent.left
-                    anchors.verticalCenter: parent.verticalCenter
-                    anchors.leftMargin: 10
-                    spacing: 10
-
-                
-
-                    Text {
-                        text: "Add MATLAB function/script..."
-                        font.pixelSize: 12
-                        color: "#333"
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                }
-
-                // Arrow indicator for submenu (positioned separately)
-                Text {
-                    text: "▶"
-                    font.pixelSize: 12
-                    color: "#666"
-                    anchors.verticalCenter: parent.verticalCenter
-                    anchors.right: parent.right
-                    anchors.rightMargin: 15
-                }
-
-                MouseArea {
-                    id: matlabFunctionMouseArea
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    onClicked: {
-                        window.matlabSubmenuOpen = !window.matlabSubmenuOpen
-                    }
-                }
-            }
-
-            // Change FieldTrip path
-            Rectangle {
-                width: parent.width
-                height: 35
-                color: changeFieldtripMainMouseArea.containsMouse ? "#f8f9fa" : "white"
-
-                Row {
-                    anchors.left: parent.left
-                    anchors.verticalCenter: parent.verticalCenter
-                    anchors.leftMargin: 10
-                    spacing: 10
-
-                
-                    Text {
-                        text: "Change FieldTrip path..."
-                        font.pixelSize: 12
-                        color: "#333"
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                }
-
-                MouseArea {
-                    id: changeFieldtripMainMouseArea
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    onClicked: {
-                        window.fileMenuOpen = false
-                        window.matlabSubmenuOpen = false
-                        fieldtripDialog.open()
-                    }
-                }
-            }
-
-            // Change data path
-            Rectangle {
-                width: parent.width
-                height: 35
-                color: changeDataPathMainMouseArea.containsMouse ? "#f8f9fa" : "white"
-
-                Row {
-                    anchors.left: parent.left
-                    anchors.verticalCenter: parent.verticalCenter
-                    anchors.leftMargin: 10
-                    spacing: 10
-
-                
-
-                    Text {
-                        text: "Change data path..."
-                        font.pixelSize: 12
-                        color: "#333"
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                }
-
-                MouseArea {
-                    id: changeDataPathMainMouseArea
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    onClicked: {
-                        window.fileMenuOpen = false
-                        window.matlabSubmenuOpen = false
-                        folderDialog.open()
-                    }
-                }
-            }
-        }
-    }
-
-    // MATLAB Submenu (appears next to the File dropdown)
-    Rectangle {
-        id: matlabSubmenu
-        x: fileDropdownMenu.x + fileDropdownMenu.width
-        y: fileDropdownMenu.y
-        width: 180
-        height: 80
-        color: "white"
-        border.color: "#ccc"
-        border.width: 1
-        radius: 4
-        visible: window.matlabSubmenuOpen && window.fileMenuOpen
-        z: 10001
-
-        // Drop shadow effect
-        Rectangle {
-            anchors.fill: parent
-            anchors.topMargin: 2
-            anchors.leftMargin: 2
-            color: "#00000020"
-            radius: 4
-            z: -1
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            // Keep submenu open when hovering over it (no action needed)
-        }
-
-        Column {
-            anchors.fill: parent
-            anchors.margins: 2
-
-            // Create function/script option
-            Rectangle {
-                width: parent.width
-                height: 38
-                color: createFunctionMouseArea.containsMouse ? "#f8f9fa" : "white"
-
-                Row {
-                    anchors.left: parent.left
-                    anchors.verticalCenter: parent.verticalCenter
-                    anchors.leftMargin: 10
-                    spacing: 8
-
-                    Text {
-                        text: "+"
-                        font.pixelSize: 16
-                        font.bold: true
-                        color: "#28a745"
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-
-                    Text {
-                        text: "Create function/script"
-                        font.pixelSize: 12
-                        color: "#333"
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                }
-
-                MouseArea {
-                    id: createFunctionMouseArea
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    onClicked: {
-                        window.fileMenuOpen = false
-                        window.matlabSubmenuOpen = false
-                        console.log("Create function/script clicked")
-                        // TODO: Implement create function/script functionality
-                    }
-                }
-            }
-
-            // Open file explorer option
-            Rectangle {
-                width: parent.width
-                height: 38
-                color: openExplorerMouseArea.containsMouse ? "#f8f9fa" : "white"
-
-                Row {
-                    anchors.left: parent.left
-                    anchors.verticalCenter: parent.verticalCenter
-                    anchors.leftMargin: 10
-                    spacing: 8
-
-                    Text {
-                        text: "📁"
-                        font.pixelSize: 12
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-
-                    Text {
-                        text: "Open file explorer"
-                        font.pixelSize: 12
-                        color: "#333"
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                }
-
-                MouseArea {
-                    id: openExplorerMouseArea
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    onClicked: {
-                        window.fileMenuOpen = false
-                        window.matlabSubmenuOpen = false
-                        console.log("Open file explorer clicked")
-                        // TODO: Implement open file explorer functionality
-                    }
-                }
-            }
-        }
-    }
-
-    // Custom context menu using Popup
-    Popup {
-        id: contextMenu
-        
-        property string fileName: ""
-        property string filePath: ""
-        property bool isMatFile: false
-        
-        width: 160  // Reduced width
-        height: menuColumn.height + 12  // Reduced padding
-        modal: true
-        focus: true
-        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-        
-        // Method to open at specific coordinates
-        function openAt(mouseX, mouseY) {
-            x = mouseX
-            y = mouseY
-            open()
-        }
-        
-        background: Rectangle {
-            color: "white"
-            border.color: "#cccccc"
-            border.width: 1
-            radius: 4
-            
-            Rectangle {
-                anchors.fill: parent
-                anchors.margins: 1
-                color: "transparent"
-                border.color: "#f0f0f0"
-                border.width: 1
-                radius: 3
-            }
-        }
-        
-        Column {
-            id: menuColumn
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.margins: 4
-            anchors.topMargin: 0  // No top margin at all
-            spacing: 1
-            
-            // Open Data Browser option (for any .mat file)
-            Rectangle {
-                id: openDataBrowserItem
-                width: parent.width
-                height: 24  // Reduced height
-                visible: contextMenu.isMatFile
-                color: openDataBrowserMouseArea.containsMouse ? "#e3f2fd" : "transparent"
-                radius: 2
-                
-                Row {
-                    anchors.left: parent.left
-                    anchors.leftMargin: 10
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: 8
-                    
-                    Text {
-                        text: "Open Data Browser"
-                        font.pixelSize: 12
-                        color: "#333"
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                }
-                
-                MouseArea {
-                    id: openDataBrowserMouseArea
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    onClicked: {
-                        console.log("Opening Data Browser for:", contextMenu.fileName)
-                        matlabExecutor.launchMatlabICABrowser(contextMenu.filePath)
-                        contextMenu.close()
-                    }
-                }
-            }
-            
-            // View File Info option
-            Rectangle {
-                id: viewFileInfoItem
-                width: parent.width
-                height: 24  // Reduced height
-                visible: contextMenu.isMatFile
-                color: viewFileInfoMouseArea.containsMouse ? "#e3f2fd" : "transparent"
-                radius: 2
-                
-                Row {
-                    anchors.left: parent.left
-                    anchors.leftMargin: 10
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: 8
-                    
-                    Text {
-                        text: "View File Info"
-                        font.pixelSize: 12
-                        color: "#333"
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                }
-                
-                MouseArea {
-                    id: viewFileInfoMouseArea
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    onClicked: {
-                        console.log("Viewing file info for:", contextMenu.fileName)
-                        contextMenu.close()
-                    }
-                }
-            }
-            
-            // Copy File Path option
-            Rectangle {
-                id: copyPathItem
-                width: parent.width
-                height: 24  // Reduced height
-                color: copyPathMouseArea.containsMouse ? "#e3f2fd" : "transparent"
-                radius: 2
-                
-                Row {
-                    anchors.left: parent.left
-                    anchors.leftMargin: 10
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: 8
-                    
-                    Text {
-                        text: "Copy File Path"
-                        font.pixelSize: 12
-                        color: "#333"
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                }
-                
-                MouseArea {
-                    id: copyPathMouseArea
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    onClicked: {
-                        console.log("Copying path:", contextMenu.filePath)
-                        contextMenu.close()
-                    }
-                }
-            }
-        }
-    }
-
-    // File properties dialog
-    Dialog {
-        id: filePropertiesDialog
-        title: "File Properties"
-        modal: true
-        standardButtons: Dialog.Ok
-
-        property string fileName: ""
-        property string filePath: ""
-        property bool isICAFile: false
-
-        Column {
-            spacing: 10
-            padding: 10
-
-            Text {
-                text: "File Name:"
-                font.bold: true
-            }
-
-            Text {
-                text: filePropertiesDialog.fileName
-            }
-
-            Text {
-                text: "File Path:"
-                font.bold: true
-            }
-
-            Text {
-                text: filePropertiesDialog.filePath
-            }
-
-            Text {
-                text: "File Type:"
-                font.bold: true
-            }
-
-            Text {
-                text: filePropertiesDialog.isICAFile ? "ICA File" : "MATLAB Data File"
             }
         }
     }

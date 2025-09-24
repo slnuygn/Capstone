@@ -1,11 +1,12 @@
 import QtQuick 2.15
 import QtQuick.Controls.Basic 2.15
 import QtQuick.Dialogs
+import "."
 
 Item {
     id: preprocessingPageRoot
     anchors.fill: parent
-    anchors.margins: 20
+    anchors.margins: 10  // Reduced margins for better space usage
     
     // Properties to communicate with main.qml
     property string currentFolder: ""
@@ -14,7 +15,6 @@ Item {
     property string saveMessage: ""
     property bool isProcessing: false  // Track processing state
     property bool showICABrowser: false  // Track ICA browser visibility
-    property var contextMenu: null  // Reference to context menu from main.qml
     
     // Function to initialize eventvalues from main.qml
     function setInitialEventvalues(eventvalues) {
@@ -134,21 +134,14 @@ Item {
         return eventvaluePopup.selectedEventvalues.length
     }
 
-    // Background MouseArea to close dropdown when clicking outside
-    MouseArea {
-        anchors.fill: parent
-        onClicked: {
-            // This will be handled by parent
-        }
-        z: -1
-    }
+    // Background area to close dropdown when clicking outside (removed MouseArea to fix scrolling)
 
-    // Two-Pane File Explorer Rectangle (left side, takes full height)
+    // File Explorer Rectangle - Direct implementation
     Rectangle {
         id: fileExplorerRect
         anchors.left: parent.left
         anchors.top: parent.top
-        width: parent.width * 0.25  // Slightly wider
+        width: parent.width * 0.2  // Slightly wider
         height: parent.height  // Use full height!
         color: "#f8f9fa"
         border.color: "#dee2e6"
@@ -171,36 +164,63 @@ Item {
                     text: preprocessingPageRoot.currentFolder ? "Folder: " + preprocessingPageRoot.currentFolder : "No folder selected"
                     font.pixelSize: 12
                     color: "#666"
-                    width: parent.width - 40 // Account for icon width and spacing
+                    width: parent.width - 70 // Account for both buttons width and spacing
                     wrapMode: Text.Wrap
                     anchors.verticalCenter: parent.verticalCenter
                 }
 
-                // Spacer to push button to the right
+                // Spacer to push buttons to the right
                 Item {
-                    width: parent.width - (parent.children[0].width + parent.children[2].width + 20)
+                    width: parent.width - (parent.children[0].width + 70) // Account for both buttons
                     height: 1
                 }
 
-                // Folder Icon Button (positioned at the right)
-                Button {
-                    width: 30
-                    height: 30
+                // Button group with tighter spacing
+                Row {
+                    spacing: 2 // Very tight spacing between buttons
                     
-                    background: Rectangle {
-                        color: parent.pressed ? "#dee2e6" : (parent.hovered ? "#f1f3f4" : "transparent")
-                        radius: 4
-                    }
-                    
-                    contentItem: Text {
-                        text: "📁"
-                        font.pixelSize: 16
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
+                    // Refresh Button
+                    Button {
+                        width: 30
+                        height: 30
+                        
+                        background: Rectangle {
+                            color: parent.pressed ? "#dee2e6" : (parent.hovered ? "#f1f3f4" : "transparent")
+                            radius: 4
+                        }
+                        
+                        contentItem: Text {
+                            text: "🔄"
+                            font.pixelSize: 16
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        onClicked: {
+                            preprocessingPageRoot.refreshFileExplorer()
+                        }
                     }
 
-                    onClicked: {
-                        preprocessingPageRoot.openFolderDialog()
+                    // Folder Icon Button (positioned at the right)
+                    Button {
+                        width: 30
+                        height: 30
+                        
+                        background: Rectangle {
+                            color: parent.pressed ? "#dee2e6" : (parent.hovered ? "#f1f3f4" : "transparent")
+                            radius: 4
+                        }
+                        
+                        contentItem: Text {
+                            text: "📁"
+                            font.pixelSize: 16
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        onClicked: {
+                            preprocessingPageRoot.openFolderDialog()
+                        }
                     }
                 }
             }
@@ -208,10 +228,10 @@ Item {
             // Drive Files (full height)
             Column {
                 width: parent.width
-                height: parent.height - 40  // Full height minus header row
+                height: parent.height - 30  // Full height minus header row
 
                 Text {
-                    text: "Drive Files"
+                    text: "File Explorer"
                     font.bold: true
                     color: "#495057"
                     font.pixelSize: 12
@@ -252,23 +272,7 @@ Item {
                                         acceptedButtons: Qt.LeftButton | Qt.RightButton
                                         
                                         onClicked: function(mouse) {
-                                            if (mouse.button === Qt.RightButton) {
-                                                // Right-click: show context menu
-                                                var cleanFilename = modelData.replace(/^[^\w]+/, '')  // Remove leading emojis/symbols
-                                                var fullPath = preprocessingPageRoot.currentFolder + "/" + cleanFilename
-                                                var isMatFile = cleanFilename.toLowerCase().endsWith('.mat')
-                                                
-                                                // Show context menu from main.qml at mouse position
-                                                if (preprocessingPageRoot.contextMenu) {
-                                                    preprocessingPageRoot.contextMenu.fileName = cleanFilename
-                                                    preprocessingPageRoot.contextMenu.filePath = fullPath
-                                                    preprocessingPageRoot.contextMenu.isMatFile = isMatFile
-                                                    
-                                                    // Map mouse coordinates to the context menu's parent coordinates
-                                                    var parentPos = fileMouseArea.mapToItem(preprocessingPageRoot.contextMenu.parent, mouse.x, mouse.y)
-                                                    preprocessingPageRoot.contextMenu.openAt(parentPos.x, parentPos.y)
-                                                }
-                                            } else if (mouse.button === Qt.LeftButton) {
+                                            if (mouse.button === Qt.LeftButton) {
                                                 // Left-click: original behavior (disabled as requested)
                                                 // User wanted to cancel the automatic script execution on click
                                                 console.log("File clicked (automatic execution disabled):", modelData)
@@ -310,37 +314,47 @@ Item {
                     }
                 }
             }
-
-
         }
     }
 
-    // Right side content
-    Text {
-        anchors.left: fileExplorerRect.right
-        anchors.top: parent.top
-        anchors.leftMargin: 20
-        anchors.topMargin: 20
-        text: "The .set files in this directory will be preprocessed."
-        font.pixelSize: 14
-        color: "#333"
-    }
-
-    // Scrollable Configuration controls
-    ScrollView {
+    // Right side - Configuration Area with Scrolling (maximized space usage)
+    Rectangle {
         anchors.left: fileExplorerRect.right
         anchors.top: parent.top
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-        anchors.leftMargin: 20
-        anchors.topMargin: 60
-        anchors.rightMargin: 20
-        anchors.bottomMargin: 20
-        clip: true
+        anchors.leftMargin: 10  // Reduced from 20
+        anchors.topMargin: 10   // Reduced from 20
+        anchors.rightMargin: 5  // Reduced from 20 to push scrollbar right
+        anchors.bottomMargin: 10 // Aligned with file browser bottom edge
+        color: "transparent"
         
         Column {
-            spacing: 20
-            width: Math.min(parent.width, 800)  // Limit maximum width to prevent horizontal scroll
+            width: parent.width
+            spacing: 10
+            
+            // Header text
+            Text {
+                text: "The .set files in this directory will be preprocessed."
+                font.pixelSize: 14
+                color: "#333"
+            }
+            
+            // Scrollable content area
+            ScrollView {
+                width: parent.width  
+                height: 660  // Adjusted to align with file browser bottom edge
+                clip: true
+                
+                Column {
+                    id: mainColumn
+                    spacing: 20
+                    width: parent.width
+                    
+                    Component.onCompleted: {
+                        console.log("Fixed ScrollView - Column height:", height)
+                        console.log("Fixed ScrollView - Available width:", width)
+                    }
 
             // FieldTrip Path Selection
             Column {
@@ -423,7 +437,7 @@ Item {
                     width: 200
                     height: 30
 
-                    property var customModel: ["ft_trialfun_general", "alternative", "test1", "test2"]
+                    property var customModel: ["ft_trialfun_general", "alternative", "test1", "test2", "ddd"]
                     model: customModel
                     currentIndex: 0
                     
@@ -1289,14 +1303,15 @@ Item {
                 anchors.centerIn: parent
                 visible: preprocessingPageRoot.saveMessage !== ""
             }
-        }
-
-
-        // Extra spacing at the bottom for better scrolling
-        Item {
-            width: parent.width
-            height: 300  // Add 300px of extra space at the bottom
-        }
-        
-    }
-}
+                }
+                
+                // Extra spacing at the bottom for better scrolling
+                Item {
+                    width: parent.width
+                    height: 300  // Add 300px of extra space at the bottom
+                }
+            }  // End Column (mainColumn)
+        }  // End ScrollView
+        }  // End Column (wrapper)
+    }  // End Rectangle
+}  // End Item (preprocessingPageRoot)
