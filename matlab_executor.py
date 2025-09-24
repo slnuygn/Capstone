@@ -2591,93 +2591,29 @@ class MatlabExecutor(QObject):
             import threading
             def run_matlab_ica_browser():
                 try:
-                    # Launch MATLAB in desktop mode and execute commands directly
+                    # Use -r flag with desktop mode for GUI interaction
                     matlab_commands = f"""
-                    try
-                        % Add FieldTrip path
-                        addpath('{self.getCurrentFieldtripPath().replace(chr(92), '/')}');
-                        ft_defaults;
-                        
-                        % Load the file
-                        fprintf('Loading file: {mat_file_path.replace(chr(92), '/')}\\n');
-                        loaded_data = load('{mat_file_path.replace(chr(92), '/')}');
-                        
-                        % Display what variables we found
-                        var_names = fieldnames(loaded_data);
-                        fprintf('Variables in file: %s\\n', strjoin(var_names, ', '));
-                        
-                        % Try to find ICA data variable automatically
-                        data_to_browse = [];
-                        var_used = '';
-                        
-                        % Check common variable names
-                        if isfield(loaded_data, 'data_ICApplied')
-                            data_to_browse = loaded_data.data_ICApplied;
-                            var_used = 'data_ICApplied';
-                        elseif isfield(loaded_data, 'data_ICA')
-                            data_to_browse = loaded_data.data_ICA;
-                            var_used = 'data_ICA';
-                        elseif isfield(loaded_data, 'old_ICApplied')
-                            data_to_browse = loaded_data.old_ICApplied;
-                            var_used = 'old_ICApplied';
-                        else
-                            % Use the first variable that's not metadata
-                            for i = 1:length(var_names)
-                                if ~startsWith(var_names{{i}}, '__')
-                                    data_to_browse = loaded_data.(var_names{{i}});
-                                    var_used = var_names{{i}};
-                                    break;
-                                end
-                            end
-                        end
-                        
-                        if isempty(data_to_browse)
-                            error('No suitable data variable found in file');
-                        end
-                        
-                        fprintf('Using variable: %s\\n', var_used);
-                        
-                        % Check data structure
-                        if length(data_to_browse) > 0
-                            fprintf('Data contains %d subject(s)\\n', length(data_to_browse));
-                        else
-                            error('Data variable is empty');
-                        end
-                        
-                        % Set colormap and launch ft_databrowser
-                        set(groot, 'DefaultFigureColormap', jet);
-                        
-                        cfg = [];
-                        cfg.layout = 'easycapM11.lay';
-                        cfg.viewmode = 'component';
-                        cfg.allowoverlap = 'yes';
-                        
-                        fprintf('Launching ft_databrowser for subject 1...\\n');
-                        ft_databrowser(cfg, data_to_browse(1));
-                        
-                        fprintf('ICA component browser is now open. Close the browser window when finished.\\n');
-                        
-                    catch ME
-                        fprintf('Error: %s\\n', ME.message);
-                        fprintf('Stack trace:\\n');
-                        for i = 1:length(ME.stack)
-                            fprintf('  %s (line %d)\\n', ME.stack(i).name, ME.stack(i).line);
-                        end
-                    end
-                    """
+addpath('{self.getCurrentFieldtripPath().replace(chr(92), '/')}');
+ft_defaults;
+addpath('{preprocessing_dir.replace(chr(92), '/')}');
+browse_ICA('{mat_file_path.replace(chr(92), '/')}');
+"""
+                    
+                    print(f"Launching MATLAB with ICA browser...")
+                    print(f"MATLAB commands:\\n{matlab_commands}")
                     
                     result = subprocess.run([
                         matlab_path, 
-                        "-desktop",  # Launch full MATLAB desktop
+                        "-desktop",
                         "-r", matlab_commands
-                    ], timeout=None)  # Remove timeout to let user interact
+                    ], timeout=None)  # No timeout for GUI interaction
                     
-                    print(f"MATLAB ICA browser completed with return code: {result.returncode}")
+                    print(f"MATLAB completed with return code: {result.returncode}")
                     
                     if result.returncode == 0:
                         success_msg = "MATLAB ICA browser session completed successfully!"
                     else:
-                        success_msg = f"MATLAB ICA browser session ended with return code: {result.returncode}"
+                        success_msg = f"MATLAB session ended with return code: {result.returncode}"
                     
                     self.configSaved.emit(success_msg)
                     

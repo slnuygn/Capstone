@@ -14,6 +14,7 @@ Item {
     property string saveMessage: ""
     property bool isProcessing: false  // Track processing state
     property bool showICABrowser: false  // Track ICA browser visibility
+    property var contextMenu: null  // Reference to context menu from main.qml
     
     // Function to initialize eventvalues from main.qml
     function setInitialEventvalues(eventvalues) {
@@ -246,22 +247,29 @@ Item {
                                         anchors.fill: parent
                                         hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
+                                        acceptedButtons: Qt.LeftButton | Qt.RightButton
                                         
-                                        onClicked: {
-                                            // Open file in data viewer if it's a .mat file
-                                            if (modelData.endsWith('.mat')) {
-                                                // Check if it's an ICA .mat file
-                                                if (modelData.includes('ICA') || modelData.includes('ica')) {
-                                                    console.log("ICA .mat file clicked:", modelData)
-                                                    // Clean the filename and create full path
-                                                    var cleanFilename = modelData.replace(/^[^\w]+/, '')  // Remove leading emojis/symbols
-                                                    var fullPath = preprocessingPageRoot.currentFolder + "/" + cleanFilename
-                                                    console.log("Launching MATLAB ICA browser for:", fullPath)
-                                                    matlabExecutor.launchMatlabICABrowser(fullPath)
-                                                } else {
-                                                    // Regular .mat file - open in data viewer
-                                                    dataViewer.openFile(modelData, preprocessingPageRoot.currentFolder)
+                                        onClicked: function(mouse) {
+                                            if (mouse.button === Qt.RightButton) {
+                                                // Right-click: show context menu
+                                                var cleanFilename = modelData.replace(/^[^\w]+/, '')  // Remove leading emojis/symbols
+                                                var fullPath = preprocessingPageRoot.currentFolder + "/" + cleanFilename
+                                                var isMatFile = cleanFilename.toLowerCase().endsWith('.mat')
+                                                
+                                                // Show context menu from main.qml at mouse position
+                                                if (preprocessingPageRoot.contextMenu) {
+                                                    preprocessingPageRoot.contextMenu.fileName = cleanFilename
+                                                    preprocessingPageRoot.contextMenu.filePath = fullPath
+                                                    preprocessingPageRoot.contextMenu.isMatFile = isMatFile
+                                                    
+                                                    // Map mouse coordinates to the context menu's parent coordinates
+                                                    var parentPos = fileMouseArea.mapToItem(preprocessingPageRoot.contextMenu.parent, mouse.x, mouse.y)
+                                                    preprocessingPageRoot.contextMenu.openAt(parentPos.x, parentPos.y)
                                                 }
+                                            } else if (mouse.button === Qt.LeftButton) {
+                                                // Left-click: original behavior (disabled as requested)
+                                                // User wanted to cancel the automatic script execution on click
+                                                console.log("File clicked (automatic execution disabled):", modelData)
                                             }
                                         }
                                     }

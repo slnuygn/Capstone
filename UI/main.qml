@@ -1,5 +1,6 @@
 import QtQuick 2.15
-import QtQuick.Controls.Basic 2.15
+import QtQuick.Controls 2.15
+import QtQuick.Layouts 1.15
 import QtQuick.Dialogs
 import MatlabExecutor 1.0
 import FileBrowser 1.0
@@ -437,6 +438,7 @@ ApplicationWindow {
                     item.folderContents = Qt.binding(function() { return window.folderContents })
                     item.fieldtripPath = Qt.binding(function() { return window.fieldtripPath })
                     item.saveMessage = Qt.binding(function() { return window.saveMessage })
+                    item.contextMenu = contextMenu  // Pass context menu reference
                     
                     // Initialize eventvalue dropdown with current values from MATLAB file
                     if (matlabExecutor) {
@@ -754,4 +756,199 @@ ApplicationWindow {
             }
         }
     }
+
+    // Custom context menu using Popup
+    Popup {
+        id: contextMenu
+        
+        property string fileName: ""
+        property string filePath: ""
+        property bool isMatFile: false
+        
+        width: 160  // Reduced width
+        height: menuColumn.height + 12  // Reduced padding
+        modal: true
+        focus: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        
+        // Method to open at specific coordinates
+        function openAt(mouseX, mouseY) {
+            x = mouseX
+            y = mouseY
+            open()
+        }
+        
+        background: Rectangle {
+            color: "white"
+            border.color: "#cccccc"
+            border.width: 1
+            radius: 4
+            
+            Rectangle {
+                anchors.fill: parent
+                anchors.margins: 1
+                color: "transparent"
+                border.color: "#f0f0f0"
+                border.width: 1
+                radius: 3
+            }
+        }
+        
+        Column {
+            id: menuColumn
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 4
+            anchors.topMargin: 0  // No top margin at all
+            spacing: 1
+            
+            // Open Data Browser option (for any .mat file)
+            Rectangle {
+                id: openDataBrowserItem
+                width: parent.width
+                height: 24  // Reduced height
+                visible: contextMenu.isMatFile
+                color: openDataBrowserMouseArea.containsMouse ? "#e3f2fd" : "transparent"
+                radius: 2
+                
+                Row {
+                    anchors.left: parent.left
+                    anchors.leftMargin: 10
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 8
+                    
+                    Text {
+                        text: "Open Data Browser"
+                        font.pixelSize: 12
+                        color: "#333"
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                }
+                
+                MouseArea {
+                    id: openDataBrowserMouseArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked: {
+                        console.log("Opening Data Browser for:", contextMenu.fileName)
+                        matlabExecutor.launchMatlabICABrowser(contextMenu.filePath)
+                        contextMenu.close()
+                    }
+                }
+            }
+            
+            // View File Info option
+            Rectangle {
+                id: viewFileInfoItem
+                width: parent.width
+                height: 24  // Reduced height
+                visible: contextMenu.isMatFile
+                color: viewFileInfoMouseArea.containsMouse ? "#e3f2fd" : "transparent"
+                radius: 2
+                
+                Row {
+                    anchors.left: parent.left
+                    anchors.leftMargin: 10
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 8
+                    
+                    Text {
+                        text: "View File Info"
+                        font.pixelSize: 12
+                        color: "#333"
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                }
+                
+                MouseArea {
+                    id: viewFileInfoMouseArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked: {
+                        console.log("Viewing file info for:", contextMenu.fileName)
+                        contextMenu.close()
+                    }
+                }
+            }
+            
+            // Copy File Path option
+            Rectangle {
+                id: copyPathItem
+                width: parent.width
+                height: 24  // Reduced height
+                color: copyPathMouseArea.containsMouse ? "#e3f2fd" : "transparent"
+                radius: 2
+                
+                Row {
+                    anchors.left: parent.left
+                    anchors.leftMargin: 10
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 8
+                    
+                    Text {
+                        text: "Copy File Path"
+                        font.pixelSize: 12
+                        color: "#333"
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                }
+                
+                MouseArea {
+                    id: copyPathMouseArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked: {
+                        console.log("Copying path:", contextMenu.filePath)
+                        contextMenu.close()
+                    }
+                }
+            }
+        }
+    }
+
+    // File properties dialog
+    Dialog {
+        id: filePropertiesDialog
+        title: "File Properties"
+        modal: true
+        standardButtons: Dialog.Ok
+
+        property string fileName: ""
+        property string filePath: ""
+        property bool isICAFile: false
+
+        Column {
+            spacing: 10
+            padding: 10
+
+            Text {
+                text: "File Name:"
+                font.bold: true
+            }
+
+            Text {
+                text: filePropertiesDialog.fileName
+            }
+
+            Text {
+                text: "File Path:"
+                font.bold: true
+            }
+
+            Text {
+                text: filePropertiesDialog.filePath
+            }
+
+            Text {
+                text: "File Type:"
+                font.bold: true
+            }
+
+            Text {
+                text: filePropertiesDialog.isICAFile ? "ICA File" : "MATLAB Data File"
+            }
+        }
+    }
+
 }
