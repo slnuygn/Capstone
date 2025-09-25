@@ -273,9 +273,29 @@ Item {
                                         
                                         onClicked: function(mouse) {
                                             if (mouse.button === Qt.LeftButton) {
-                                                // Left-click: original behavior (disabled as requested)
-                                                // User wanted to cancel the automatic script execution on click
-                                                console.log("File clicked (automatic execution disabled):", modelData)
+                                                // Left-click: Check if it's a .mat file and handle accordingly
+                                                var cleanFilename = modelData.replace(/^[^\w]+/, '')  // Remove leading emojis/symbols
+                                                
+                                                if (cleanFilename.toLowerCase().endsWith('.mat')) {
+                                                    // Check if it's an ICA file by looking for ICA indicators in filename
+                                                    var isICAFile = cleanFilename.toLowerCase().includes('ica') || 
+                                                                   cleanFilename.toLowerCase().includes('comp') ||
+                                                                   cleanFilename.toLowerCase().includes('component')
+                                                    
+                                                    if (isICAFile) {
+                                                        console.log("ICA file detected:", cleanFilename)
+                                                        var fullPath = preprocessingPageRoot.currentFolder + "/" + cleanFilename
+                                                        
+                                                        // Call browse_ICA function through MATLAB executor
+                                                        if (matlabExecutor) {
+                                                            matlabExecutor.launchMatlabICABrowser(fullPath)
+                                                        }
+                                                    } else {
+                                                        console.log("Not an ICA file:", cleanFilename)
+                                                    }
+                                                } else {
+                                                    console.log("Not a .mat file:", cleanFilename)
+                                                }
                                             }
                                         }
                                     }
