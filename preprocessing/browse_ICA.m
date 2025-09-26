@@ -58,6 +58,7 @@ try
         cfg.layout = 'easycapM11.lay';  % your layout file
         cfg.viewmode = 'component';      % component view mode
         cfg.continuous = 'no';
+        cfg.total_subjects = length(ICA_data);  % Pass total subject count
         
         fprintf('Showing components for subject %d\n', i);
         ft_databrowser(cfg, ICA_data(i));
