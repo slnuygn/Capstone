@@ -4,6 +4,7 @@ import QtQuick.Layouts 1.15
 import QtQuick.Dialogs
 import MatlabExecutor 1.0
 import FileBrowser 1.0
+import "../features/preprocessing/ui/"
 
 ApplicationWindow {
     id: window
@@ -495,7 +496,7 @@ ApplicationWindow {
             Loader {
                 id: preprocessingPageLoader
                 anchors.fill: parent
-                source: "preprocessing_page.qml"
+                source: "../features/preprocessing/ui/preprocessing_page.qml"
                 
                 onLoaded: {
                     item.currentFolder = Qt.binding(function() { return fileBrowserComponent.currentFolder })

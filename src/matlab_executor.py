@@ -253,7 +253,7 @@ class MatlabExecutor(QObject):
     def getCurrentDataDirectory(self):
         """Read the current data_dir from preprocessing.m"""
         try:
-            script_path = resource_path("preprocessing/preprocessing.m")
+            script_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "features", "preprocessing", "matlab", "preprocessing.m")
             
             with open(script_path, 'r') as file:
                 content = file.read()
@@ -284,7 +284,7 @@ class MatlabExecutor(QObject):
     def updateDataDirectory(self, folder_path):
         """Update the data_dir in preprocessing.m with the selected folder path"""
         try:
-            script_path = resource_path("preprocessing/preprocessing.m")
+            script_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "features", "preprocessing", "matlab", "preprocessing.m")
             
             # Convert QML URL to local path if needed
             if folder_path.startswith("file:///"):
@@ -321,7 +321,7 @@ class MatlabExecutor(QObject):
     def getCurrentFieldtripPath(self):
         """Read the current FieldTrip path from preprocessing.m"""
         try:
-            script_path = resource_path("preprocessing/preprocessing.m")
+            script_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "features", "preprocessing", "matlab", "preprocessing.m")
             with open(script_path, 'r') as file:
                 content = file.read()
             
@@ -341,7 +341,7 @@ class MatlabExecutor(QObject):
     def updateFieldtripPath(self, folder_path):
         """Update the FieldTrip path in preprocessing.m with the selected folder path"""
         try:
-            script_path = resource_path("preprocessing/preprocessing.m")
+            script_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "features", "preprocessing", "matlab", "preprocessing.m")
             
             # Convert QML URL to local path if needed
             if folder_path.startswith("file:///"):
@@ -480,7 +480,7 @@ class MatlabExecutor(QObject):
     def updateSelectedChannels(self, selected_channels):
         """Update the accepted_channels in preprocessing.m with the selected channels"""
         try:
-            script_path = resource_path("preprocessing/preprocessing.m")
+            script_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "features", "preprocessing", "matlab", "preprocessing.m")
             
             # Read the current file
             with open(script_path, 'r') as file:
@@ -530,7 +530,7 @@ class MatlabExecutor(QObject):
     def updateDataDirectory(self, data_path):
         """Update the data_dir path in preprocessing.m"""
         try:
-            script_path = resource_path("preprocessing/preprocessing.m")
+            script_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "features", "preprocessing", "matlab", "preprocessing.m")
             
             # Read the current file
             with open(script_path, 'r') as file:
@@ -569,7 +569,7 @@ class MatlabExecutor(QObject):
             matlab_path = r"C:\Program Files\MATLAB\R2023a\bin\matlab.exe"
             
             # Path to the preprocessing directory
-            preprocessing_dir = resource_path("preprocessing")
+            preprocessing_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "features", "preprocessing")
             
             # Emit a status message that processing has started
             self.configSaved.emit("Configuration saved! Starting MATLAB processing...\nProcessing data files in background.\nThe application will remain responsive during processing.")
@@ -645,7 +645,7 @@ class MatlabExecutor(QObject):
             matlab_path = r"C:\Program Files\MATLAB\R2023a\bin\matlab.exe"
             
             # Get the preprocessing directory (where browse_ICA.m should be)
-            preprocessing_dir = resource_path("preprocessing")
+            preprocessing_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "features", "preprocessing")
             
             # Create the MATLAB command to run the ICA browser
             matlab_command = f"""
@@ -799,7 +799,7 @@ class MatlabExecutor(QObject):
     def getCurrentChannels(self):
         """Read the current selected channels from preprocessing.m"""
         try:
-            script_path = resource_path("preprocessing/preprocessing.m")
+            script_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "features", "preprocessing", "matlab", "preprocessing.m")
             with open(script_path, 'r') as file:
                 content = file.read()
             
@@ -862,7 +862,7 @@ class MatlabExecutor(QObject):
     def addCustomTrialfunOption(self, new_option):
         """Add a new custom trialfun option to the QML file directly"""
         try:
-            qml_file_path = "UI/preprocessing_page.qml"
+            qml_file_path = "features/preprocessing/ui/preprocessing_page.qml"
             
             # Read the current QML file
             with open(qml_file_path, 'r', encoding='utf-8') as file:
@@ -910,7 +910,7 @@ class MatlabExecutor(QObject):
     def saveTrialfunSelection(self, selected_option, selected_index):
         """Save the selected trialfun option and index to the QML file"""
         try:
-            qml_file_path = "UI/preprocessing_page.qml"
+            qml_file_path = "features/preprocessing/ui/preprocessing_page.qml"
             
             # Read the current QML file
             with open(qml_file_path, 'r', encoding='utf-8') as file:
@@ -935,7 +935,7 @@ class MatlabExecutor(QObject):
     def addCustomEventtypeOption(self, new_option):
         """Add a new custom eventtype option to the QML file directly"""
         try:
-            qml_file_path = "UI/preprocessing_page.qml"
+            qml_file_path = "features/preprocessing/ui/preprocessing_page.qml"
             
             # Read the current QML file
             with open(qml_file_path, 'r', encoding='utf-8') as file:
@@ -983,7 +983,7 @@ class MatlabExecutor(QObject):
     def saveEventtypeSelection(self, selected_option, selected_index):
         """Save the selected eventtype option and index to the QML file"""
         try:
-            qml_file_path = "UI/preprocessing_page.qml"
+            qml_file_path = "features/preprocessing/ui/preprocessing_page.qml"
             
             # Read the current QML file
             with open(qml_file_path, 'r', encoding='utf-8') as file:
@@ -1043,7 +1043,7 @@ class MatlabExecutor(QObject):
                 return
             
             # Get paths
-            preprocessing_dir = resource_path("preprocessing")
+            preprocessing_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "features", "preprocessing")
             matlab_path = r"C:\Program Files\MATLAB\R2023a\bin\matlab.exe"
             
             # Check if MATLAB exists
