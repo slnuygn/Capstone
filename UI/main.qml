@@ -413,11 +413,12 @@ ApplicationWindow {
             // Tab 1 - Preprocessing
             Rectangle {
                 id: preprocessingTab
-                width: 120
+                width: preprocessingText.implicitWidth + 20
                 height: parent.height
                 color: contentArea.currentIndex === 0 ? "white" : "#e0e0e0"
 
                 Text {
+                    id: preprocessingText
                     text: "Preprocessing"
                     anchors.centerIn: parent
                     font.pixelSize: 14
@@ -434,11 +435,12 @@ ApplicationWindow {
             // Tab 2 - Feature Extraction Analysis
             Rectangle {
                 id: featureExtractionAnalysisTab
-                width: 120
+                width: featureExtractionText.implicitWidth + 20
                 height: parent.height
                 color: contentArea.currentIndex === 1 ? "white" : "#e0e0e0"
 
                 Text {
+                    id: featureExtractionText
                     text: "Feature Extraction Analysis"
                     anchors.centerIn: parent
                     font.pixelSize: 14
@@ -455,11 +457,12 @@ ApplicationWindow {
             // Tab 3 - Classification
             Rectangle {
                 id: classificationTab
-                width: 120
+                width: classificationText.implicitWidth + 20
                 height: parent.height
                 color: contentArea.currentIndex === 2 ? "white" : "#e0e0e0"
 
                 Text {
+                    id: classificationText
                     text: "Classification"
                     anchors.centerIn: parent
                     font.pixelSize: 14

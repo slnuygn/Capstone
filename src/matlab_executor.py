@@ -720,8 +720,6 @@ class MatlabExecutor(QObject):
             print(error_msg)
             self.configSaved.emit(error_msg)
     
-    @pyqtSlot(str)
-    
     @pyqtSlot()
     def executeMatlabScript(self):
         """Execute MATLAB script and emit the output"""
@@ -862,7 +860,7 @@ class MatlabExecutor(QObject):
     def addCustomTrialfunOption(self, new_option):
         """Add a new custom trialfun option to the QML file directly"""
         try:
-            qml_file_path = "features/preprocessing/ui/preprocessing_page.qml"
+            qml_file_path = "../features/preprocessing/ui/preprocessing_page.qml"
             
             # Read the current QML file
             with open(qml_file_path, 'r', encoding='utf-8') as file:
@@ -910,7 +908,7 @@ class MatlabExecutor(QObject):
     def saveTrialfunSelection(self, selected_option, selected_index):
         """Save the selected trialfun option and index to the QML file"""
         try:
-            qml_file_path = "features/preprocessing/ui/preprocessing_page.qml"
+            qml_file_path = "../features/preprocessing/ui/preprocessing_page.qml"
             
             # Read the current QML file
             with open(qml_file_path, 'r', encoding='utf-8') as file:
@@ -935,7 +933,7 @@ class MatlabExecutor(QObject):
     def addCustomEventtypeOption(self, new_option):
         """Add a new custom eventtype option to the QML file directly"""
         try:
-            qml_file_path = "features/preprocessing/ui/preprocessing_page.qml"
+            qml_file_path = "../features/preprocessing/ui/preprocessing_page.qml"
             
             # Read the current QML file
             with open(qml_file_path, 'r', encoding='utf-8') as file:
@@ -983,7 +981,7 @@ class MatlabExecutor(QObject):
     def saveEventtypeSelection(self, selected_option, selected_index):
         """Save the selected eventtype option and index to the QML file"""
         try:
-            qml_file_path = "features/preprocessing/ui/preprocessing_page.qml"
+            qml_file_path = "../features/preprocessing/ui/preprocessing_page.qml"
             
             # Read the current QML file
             with open(qml_file_path, 'r', encoding='utf-8') as file:
@@ -1104,3 +1102,395 @@ browse_ICA('{mat_file_path.replace(chr(92), '/')}');
             error_msg = f"Error launching MATLAB ICA browser: {str(e)}"
             print(error_msg)
             self.configSaved.emit(error_msg)
+
+    @pyqtSlot(str)
+    def addCustomTrialfunOptionToAllItems(self, new_option):
+        """Add a new custom trialfun option to the trialfun dropdown's allItems array"""
+        try:
+            qml_file_path = "../features/preprocessing/ui/preprocessing_page.qml"
+            
+            # Read the current QML file
+            with open(qml_file_path, 'r', encoding='utf-8') as file:
+                content = file.read()
+            
+            # Find the trialfun allItems array (look for the pattern with ft_trialfun_general)
+            pattern = r'allItems: (\["ft_trialfun_general".*?\])'
+            match = re.search(pattern, content, re.DOTALL)
+            
+            if match:
+                current_array_str = match.group(1)
+                
+                # Parse the current array
+                import ast
+                try:
+                    current_array = ast.literal_eval(current_array_str)
+                except:
+                    # Fallback: extract items between quotes
+                    items = re.findall(r'"([^"]*)"', current_array_str)
+                    current_array = items
+                
+                # Add the new option if it's not already there
+                if new_option not in current_array:
+                    current_array.append(new_option)
+                    
+                    # Create the new array string
+                    new_array_str = '["' + '", "'.join(current_array) + '"]'
+                    
+                    # Replace in the content
+                    new_content = re.sub(pattern, f'allItems: {new_array_str}', content)
+                    
+                    # Write back to file
+                    with open(qml_file_path, 'w', encoding='utf-8') as file:
+                        file.write(new_content)
+                    
+                    print(f"Added '{new_option}' to trialfun allItems")
+                    return True
+            
+            return False
+            
+        except Exception as e:
+            print(f"Error adding custom trialfun option to allItems: {str(e)}")
+            return False
+
+    @pyqtSlot(str)
+    def addCustomEventtypeOptionToAllItems(self, new_option):
+        """Add a new custom eventtype option to the eventtype dropdown's allItems array"""
+        try:
+            qml_file_path = "../features/preprocessing/ui/preprocessing_page.qml"
+            
+            # Read the current QML file
+            with open(qml_file_path, 'r', encoding='utf-8') as file:
+                content = file.read()
+            
+            # Find the eventtype allItems array (look for the pattern with Stimulus)
+            pattern = r'allItems: (\["Stimulus".*?\])'
+            match = re.search(pattern, content, re.DOTALL)
+            
+            if match:
+                current_array_str = match.group(1)
+                
+                # Parse the current array
+                import ast
+                try:
+                    current_array = ast.literal_eval(current_array_str)
+                except:
+                    # Fallback: extract items between quotes
+                    items = re.findall(r'"([^"]*)"', current_array_str)
+                    current_array = items
+                
+                # Add the new option if it's not already there
+                if new_option not in current_array:
+                    current_array.append(new_option)
+                    
+                    # Create the new array string
+                    new_array_str = '["' + '", "'.join(current_array) + '"]'
+                    
+                    # Replace in the content
+                    new_content = re.sub(pattern, f'allItems: {new_array_str}', content)
+                    
+                    # Write back to file
+                    with open(qml_file_path, 'w', encoding='utf-8') as file:
+                        file.write(new_content)
+                    
+                    print(f"Added '{new_option}' to eventtype allItems")
+                    return True
+            
+            return False
+            
+        except Exception as e:
+            print(f"Error adding custom eventtype option to allItems: {str(e)}")
+            return False
+
+    @pyqtSlot(str)
+    def addCustomEventvalueOptionToAllItems(self, new_option):
+        """Add a new custom eventvalue option to the eventvalue dropdown's allItems array"""
+        try:
+            qml_file_path = "../features/preprocessing/ui/preprocessing_page.qml"
+            
+            # Read the current QML file
+            with open(qml_file_path, 'r', encoding='utf-8') as file:
+                content = file.read()
+            
+            # Find the eventvalue allItems array (look for the pattern with S200)
+            pattern = r'allItems: (\["S200".*?\])'
+            match = re.search(pattern, content, re.DOTALL)
+            
+            if match:
+                current_array_str = match.group(1)
+                
+                # Parse the current array
+                import ast
+                try:
+                    current_array = ast.literal_eval(current_array_str)
+                except:
+                    # Fallback: extract items between quotes
+                    items = re.findall(r'"([^"]*)"', current_array_str)
+                    current_array = items
+                
+                # Add the new option if it's not already there
+                if new_option not in current_array:
+                    current_array.append(new_option)
+                    
+                    # Create the new array string
+                    new_array_str = '["' + '", "'.join(current_array) + '"]'
+                    
+                    # Replace in the content
+                    new_content = re.sub(pattern, f'allItems: {new_array_str}', content)
+                    
+                    # Write back to file
+                    with open(qml_file_path, 'w', encoding='utf-8') as file:
+                        file.write(new_content)
+                    
+                    print(f"Added '{new_option}' to eventvalue allItems")
+                    return True
+            
+            return False
+            
+        except Exception as e:
+            print(f"Error adding custom eventvalue option to allItems: {str(e)}")
+            return False
+
+    @pyqtSlot(str)
+    def addCustomChannelOptionToAllItems(self, new_option):
+        """Add a new custom channel option to the channel dropdown's allItems array"""
+        try:
+            qml_file_path = "../features/preprocessing/ui/preprocessing_page.qml"
+            
+            # Read the current QML file
+            with open(qml_file_path, 'r', encoding='utf-8') as file:
+                content = file.read()
+            
+            # Find the channel allItems array (look for the pattern with Fp1)
+            pattern = r'allItems: (\["Fp1".*?\])'
+            match = re.search(pattern, content, re.DOTALL)
+            
+            if match:
+                current_array_str = match.group(1)
+                
+                # Parse the current array
+                import ast
+                try:
+                    current_array = ast.literal_eval(current_array_str)
+                except:
+                    # Fallback: extract items between quotes
+                    items = re.findall(r'"([^"]*)"', current_array_str)
+                    current_array = items
+                
+                # Add the new option if it's not already there
+                if new_option not in current_array:
+                    current_array.append(new_option)
+                    
+                    # Create the new array string
+                    new_array_str = '["' + '", "'.join(current_array) + '"]'
+                    
+                    # Replace in the content
+                    new_content = re.sub(pattern, f'allItems: {new_array_str}', content)
+                    
+                    # Write back to file
+                    with open(qml_file_path, 'w', encoding='utf-8') as file:
+                        file.write(new_content)
+                    
+                    print(f"Added '{new_option}' to channel allItems")
+                    return True
+            
+            return False
+            
+        except Exception as e:
+            print(f"Error adding custom channel option to allItems: {str(e)}")
+            return False
+
+    @pyqtSlot(str)
+    def deleteCustomTrialfunOptionFromAllItems(self, itemToDelete):
+        """Remove a custom trialfun option from the trialfun dropdown's allItems array"""
+        try:
+            qml_file_path = "../features/preprocessing/ui/preprocessing_page.qml"
+            
+            # Read the current QML file
+            with open(qml_file_path, 'r', encoding='utf-8') as file:
+                content = file.read()
+            
+            # Find the trialfun allItems array (look for the pattern with ft_trialfun_general)
+            pattern = r'allItems: (\["ft_trialfun_general".*?\])'
+            match = re.search(pattern, content, re.DOTALL)
+            
+            if match:
+                current_array_str = match.group(1)
+                
+                # Parse the current array
+                import ast
+                try:
+                    current_array = ast.literal_eval(current_array_str)
+                except:
+                    # Fallback: extract items between quotes
+                    items = re.findall(r'"([^"]*)"', current_array_str)
+                    current_array = items
+                
+                # Remove the item if it exists
+                if itemToDelete in current_array:
+                    current_array.remove(itemToDelete)
+                    
+                    # Create the new array string
+                    new_array_str = '["' + '", "'.join(current_array) + '"]'
+                    
+                    # Replace in the content
+                    new_content = re.sub(pattern, f'allItems: {new_array_str}', content)
+                    
+                    # Write back to file
+                    with open(qml_file_path, 'w', encoding='utf-8') as file:
+                        file.write(new_content)
+                    
+                    print(f"Removed '{itemToDelete}' from trialfun allItems")
+                    return True
+            
+            return False
+            
+        except Exception as e:
+            print(f"Error removing custom trialfun option from allItems: {str(e)}")
+            return False
+
+    @pyqtSlot(str)
+    def deleteCustomEventtypeOptionFromAllItems(self, itemToDelete):
+        """Remove a custom eventtype option from the eventtype dropdown's allItems array"""
+        try:
+            qml_file_path = "../features/preprocessing/ui/preprocessing_page.qml"
+            
+            # Read the current QML file
+            with open(qml_file_path, 'r', encoding='utf-8') as file:
+                content = file.read()
+            
+            # Find the eventtype allItems array (look for the pattern with Stimulus)
+            pattern = r'allItems: (\["Stimulus".*?\])'
+            match = re.search(pattern, content, re.DOTALL)
+            
+            if match:
+                current_array_str = match.group(1)
+                
+                # Parse the current array
+                import ast
+                try:
+                    current_array = ast.literal_eval(current_array_str)
+                except:
+                    # Fallback: extract items between quotes
+                    items = re.findall(r'"([^"]*)"', current_array_str)
+                    current_array = items
+                
+                # Remove the item if it exists
+                if itemToDelete in current_array:
+                    current_array.remove(itemToDelete)
+                    
+                    # Create the new array string
+                    new_array_str = '["' + '", "'.join(current_array) + '"]'
+                    
+                    # Replace in the content
+                    new_content = re.sub(pattern, f'allItems: {new_array_str}', content)
+                    
+                    # Write back to file
+                    with open(qml_file_path, 'w', encoding='utf-8') as file:
+                        file.write(new_content)
+                    
+                    print(f"Removed '{itemToDelete}' from eventtype allItems")
+                    return True
+            
+            return False
+            
+        except Exception as e:
+            print(f"Error removing custom eventtype option from allItems: {str(e)}")
+            return False
+
+    @pyqtSlot(str)
+    def deleteCustomEventvalueOptionFromAllItems(self, itemToDelete):
+        """Remove a custom eventvalue option from the eventvalue dropdown's allItems array"""
+        try:
+            qml_file_path = "../features/preprocessing/ui/preprocessing_page.qml"
+            
+            # Read the current QML file
+            with open(qml_file_path, 'r', encoding='utf-8') as file:
+                content = file.read()
+            
+            # Find the eventvalue allItems array (look for the pattern with S200)
+            pattern = r'allItems: (\["S200".*?\])'
+            match = re.search(pattern, content, re.DOTALL)
+            
+            if match:
+                current_array_str = match.group(1)
+                
+                # Parse the current array
+                import ast
+                try:
+                    current_array = ast.literal_eval(current_array_str)
+                except:
+                    # Fallback: extract items between quotes
+                    items = re.findall(r'"([^"]*)"', current_array_str)
+                    current_array = items
+                
+                # Remove the item if it exists
+                if itemToDelete in current_array:
+                    current_array.remove(itemToDelete)
+                    
+                    # Create the new array string
+                    new_array_str = '["' + '", "'.join(current_array) + '"]'
+                    
+                    # Replace in the content
+                    new_content = re.sub(pattern, f'allItems: {new_array_str}', content)
+                    
+                    # Write back to file
+                    with open(qml_file_path, 'w', encoding='utf-8') as file:
+                        file.write(new_content)
+                    
+                    print(f"Removed '{itemToDelete}' from eventvalue allItems")
+                    return True
+            
+            return False
+            
+        except Exception as e:
+            print(f"Error removing custom eventvalue option from allItems: {str(e)}")
+            return False
+
+    @pyqtSlot(str)
+    def deleteCustomChannelOptionFromAllItems(self, itemToDelete):
+        """Remove a custom channel option from the channel dropdown's allItems array"""
+        try:
+            qml_file_path = "../features/preprocessing/ui/preprocessing_page.qml"
+            
+            # Read the current QML file
+            with open(qml_file_path, 'r', encoding='utf-8') as file:
+                content = file.read()
+            
+            # Find the channel allItems array (look for the pattern with Fp1)
+            pattern = r'allItems: (\["Fp1".*?\])'
+            match = re.search(pattern, content, re.DOTALL)
+            
+            if match:
+                current_array_str = match.group(1)
+                
+                # Parse the current array
+                import ast
+                try:
+                    current_array = ast.literal_eval(current_array_str)
+                except:
+                    # Fallback: extract items between quotes
+                    items = re.findall(r'"([^"]*)"', current_array_str)
+                    current_array = items
+                
+                # Remove the item if it exists
+                if itemToDelete in current_array:
+                    current_array.remove(itemToDelete)
+                    
+                    # Create the new array string
+                    new_array_str = '["' + '", "'.join(current_array) + '"]'
+                    
+                    # Replace in the content
+                    new_content = re.sub(pattern, f'allItems: {new_array_str}', content)
+                    
+                    # Write back to file
+                    with open(qml_file_path, 'w', encoding='utf-8') as file:
+                        file.write(new_content)
+                    
+                    print(f"Removed '{itemToDelete}' from channel allItems")
+                    return True
+            
+            return False
+            
+        except Exception as e:
+            print(f"Error removing custom channel option from allItems: {str(e)}")
+            return False

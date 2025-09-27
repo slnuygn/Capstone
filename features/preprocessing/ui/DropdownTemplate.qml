@@ -3,7 +3,7 @@ import QtQuick.Controls 2.15
 
 Item {
     id: dropdownTemplate
-    width: parent ? parent.width : 200
+    width: parent ? parent.width * 0.75 : 150
     height: 60
     z: 1000  // Base z-index
 
@@ -18,6 +18,7 @@ Item {
     property string addPlaceholder: "Enter custom..."
     property var selectedItems: [] // For multi-select
     property var allItems: [] // For multi-select
+    property bool addCheckboxChecked: false // For add item checkbox state
 
     // Dynamic z-index management
     property int baseZ: 1000
@@ -33,6 +34,7 @@ Item {
     // Signals
     signal selectionChanged(string value, int index)
     signal addItem(string newItem)
+    signal deleteItem(string itemToDelete)
     signal multiSelectionChanged(var selected)
 
     // Function to get display text for multi-select
@@ -52,6 +54,52 @@ Item {
             return ""
         } else {
             return selectedItems.join(", ")
+        }
+    }
+
+    // Function to delete an option
+    function deleteOption(itemToDelete, itemIndex) {
+        if (isMultiSelect) {
+            // For multi-select dropdowns
+            var newAllItems = allItems.slice()
+            var newSelectedItems = selectedItems.slice()
+
+            // Remove from allItems
+            var allItemsIndex = newAllItems.indexOf(itemToDelete)
+            if (allItemsIndex !== -1) {
+                newAllItems.splice(allItemsIndex, 1)
+                allItems = newAllItems
+            }
+
+            // Remove from selectedItems if it was selected
+            var selectedIndex = newSelectedItems.indexOf(itemToDelete)
+            if (selectedIndex !== -1) {
+                newSelectedItems.splice(selectedIndex, 1)
+                selectedItems = newSelectedItems
+                multiSelectionChanged(selectedItems)
+            }
+
+            // Emit signal to parent to remove from QML file
+            deleteItem(itemToDelete)
+        } else {
+            // For single-select dropdowns
+            var newModel = model.slice()
+
+            // Remove from model
+            if (itemIndex >= 0 && itemIndex < newModel.length) {
+                newModel.splice(itemIndex, 1)
+                model = newModel
+
+                // Adjust currentIndex if necessary
+                if (currentIndex >= itemIndex && currentIndex > 0) {
+                    currentIndex = currentIndex - 1
+                } else if (newModel.length === 0) {
+                    currentIndex = 0
+                }
+
+                // Emit signal to parent to remove from QML file
+                deleteItem(itemToDelete)
+            }
         }
     }
 
@@ -75,7 +123,7 @@ Item {
 
             // Custom display rectangle (consistent with multi-select)
             Rectangle {
-                width: hasAddFeature ? parent.width * 0.4 : parent.width
+                width: parent.width
                 height: 30
                 color: "#f5f5f5"
                 border.color: "#ccc"
@@ -103,7 +151,7 @@ Item {
                 MouseArea {
                     anchors.fill: parent
                     onClicked: {
-                        comboBox.popup.open()
+                        singleSelectPopup.visible = !singleSelectPopup.visible
                     }
                 }
             }
@@ -111,7 +159,7 @@ Item {
             ComboBox {
                 id: comboBox
                 visible: false  // Hidden ComboBox for functionality
-                width: hasAddFeature ? parent.width * 0.4 : parent.width
+                width: parent.width
                 height: 30
                 model: dropdownTemplate.model
                 currentIndex: dropdownTemplate.currentIndex
@@ -129,70 +177,202 @@ Item {
                 popup.onClosed: {
                     dropdownTemplate.z = dropdownTemplate.baseZ
                 }
-            }
-
-            // Add custom item section
-            Rectangle {
-                visible: hasAddFeature
-                width: parent.width * 0.35
-                height: 30
-                color: "#f8f9fa"
-                border.color: "#dee2e6"
-                border.width: 1
-                radius: 3
-
-                TextInput {
-                    id: customInput
-                    anchors.fill: parent
-                    anchors.margins: 8
-                    font.pixelSize: 11
-                    color: "#333"
-                    verticalAlignment: TextInput.AlignVCenter
-
-                    Text {
-                        anchors.left: parent.left
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: addPlaceholder
-                        font.pixelSize: 11
-                        color: "#999"
-                        visible: customInput.text === "" && !customInput.activeFocus
-                    }
-                }
-            }
-
-            Button {
-                visible: hasAddFeature
-                width: parent.width * 0.2
-                height: 30
-                text: "+ Add"
 
                 background: Rectangle {
-                    color: parent.pressed ? "#28a745" : (parent.hovered ? "#34ce57" : "#28a745")
-                    radius: 3
-                    border.color: "#1e7e34"
-                    border.width: 1
+                    visible: false  // Hide the default background
                 }
 
-                contentItem: Text {
-                    text: parent.text
-                    color: "white"
-                    font.pixelSize: 10
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
+                contentItem: Rectangle {
+                    visible: false  // Hide the default content
+                }
+            }
+
+            // Custom popup for single-select with add option
+            Rectangle {
+                id: singleSelectPopup
+                visible: false
+                width: parent.width
+                height: {
+                    var itemCount = comboBox.model.length + (hasAddFeature ? 1 : 0)
+                    var contentHeight = itemCount * 25 + Math.max(0, itemCount - 1) * 2
+                    var maxHeight = 8 * 25 + 7 * 2 + 10  // Max 8 options visible
+                    return Math.min(contentHeight + 10, maxHeight)
+                }
+                color: "white"
+                border.color: "#ccc"
+                border.width: 1
+                radius: 3
+                z: 1000
+
+                onVisibleChanged: {
+                    dropdownTemplate.z = visible ? dropdownTemplate.activeZ : dropdownTemplate.baseZ
                 }
 
-                onClicked: {
-                    var newItem = customInput.text.trim()
-                    if (newItem !== "" && model.indexOf(newItem) === -1) {
-                        var newModel = model.slice()
-                        newModel.push(newItem)
-                        model = newModel
-                        comboBox.currentIndex = newModel.length - 1
-                        customInput.text = ""
-                        addItem(newItem)
+                ScrollView {
+                    anchors.fill: parent
+                    anchors.margins: 5
+
+                    Column {
+                        width: parent.width
+                        spacing: 2
+
+                        // Existing options
+                        Repeater {
+                            model: comboBox.model
+                            delegate: Rectangle {
+                                width: parent.width
+                                height: 25
+                                color: comboBox.currentIndex === index ? "#e3f2fd" : (optionMouseArea.containsMouse ? "#f5f5f5" : "transparent")
+
+                                Row {
+                                    anchors.fill: parent
+                                    anchors.leftMargin: 5
+                                    anchors.rightMargin: 5
+
+                                    Text {
+                                        id: singleOptionText
+                                        width: parent.width - 25 - 10  // Available width minus trash icon and margin
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: modelData
+                                        font.pixelSize: 12
+                                        color: "#333"
+                                        elide: Text.ElideRight  // Truncate text if too long
+                                    }
+
+                                    // Trash icon (always visible, higher opacity on hover)
+                                    Text {
+                                        id: trashIcon
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: 20
+                                        height: 20
+                                        horizontalAlignment: Text.AlignHCenter
+                                        verticalAlignment: Text.AlignVCenter
+                                        text: "🗑️"
+                                        font.pixelSize: 12
+                                        color: "#666"
+                                        opacity: optionMouseArea.containsMouse ? 0.9 : 0.3
+                                    }
+                                }
+
+                                MouseArea {
+                                    id: optionMouseArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    onClicked: function(mouse) {
+                                        if (mouse.x >= parent.width - 25) {
+                                            // Clicked on trash icon area - delete the option
+                                            deleteOption(modelData, index)
+                                        } else {
+                                            // Clicked on option text area - select the option
+                                            comboBox.currentIndex = index
+                                            singleSelectPopup.visible = false
+                                            selectionChanged(modelData, index)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Add new item option (only when hasAddFeature is true)
+                        Rectangle {
+                            visible: hasAddFeature
+                            width: parent.width
+                            height: singleAddInput.visible ? 30 : 25
+                            color: "transparent"
+
+                            // Empty checkbox for consistency (always visible)
+                            Rectangle {
+                                id: singleAddCheckbox
+                                anchors.left: parent.left
+                                anchors.leftMargin: 5
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 15
+                                height: 15
+                                border.color: "#666"
+                                border.width: 1
+                                color: "white"
+                            }
+
+                            // Display text when not editing
+                            Text {
+                                id: singleAddText
+                                anchors.left: singleAddCheckbox.right
+                                anchors.leftMargin: 5
+                                anchors.right: parent.right
+                                anchors.rightMargin: 5
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: addPlaceholder
+                                font.pixelSize: 12
+                                font.italic: true
+                                color: "#666"
+                                visible: !singleAddInput.visible
+                            }
+
+                            // Input field when editing
+                            TextInput {
+                                id: singleAddInput
+                                anchors.left: singleAddCheckbox.right
+                                anchors.leftMargin: 5
+                                anchors.right: parent.right
+                                anchors.rightMargin: 5
+                                anchors.verticalCenter: parent.verticalCenter
+                                font.pixelSize: 12
+                                color: "#333"
+                                visible: false
+                                clip: true
+
+                                onAccepted: { // Enter key pressed
+                                    addNewItem()
+                                }
+
+                                onActiveFocusChanged: {
+                                    if (!activeFocus && visible) {
+                                        addNewItem()
+                                    }
+                                }
+
+                                function addNewItem() {
+                                    var newItem = text.trim()
+                                    if (newItem !== "" && model.indexOf(newItem) === -1) {
+                                        // Add to model
+                                        var newModel = model.slice()
+                                        newModel.push(newItem)
+                                        model = newModel
+                                        comboBox.currentIndex = newModel.length - 1
+
+                                        // Emit signal
+                                        addItem(newItem)
+
+                                        // Hide input and show text
+                                        text = ""
+                                        visible = false
+                                        singleAddText.visible = true
+                                        singleSelectPopup.visible = false
+                                    } else {
+                                        // Hide input and show text
+                                        text = ""
+                                        visible = false
+                                        singleAddText.visible = true
+                                    }
+                                }
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                onClicked: {
+                                    if (!singleAddInput.visible) {
+                                        singleAddText.visible = false
+                                        singleAddInput.visible = true
+                                        singleAddInput.forceActiveFocus()
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
+
+
         }
 
         // Multi-select interface
@@ -236,7 +416,12 @@ Item {
             id: multiSelectPopup
             visible: false
             width: parent.width
-            height: 200
+            height: {
+                var itemCount = (maxSelections !== 1 ? 1 : 0) + allItems.length + (hasAddFeature ? 1 : 0)
+                var contentHeight = itemCount * 25 + Math.max(0, itemCount - 1) * 2
+                var maxHeight = 9 * 25 + 8 * 2 + 10  // Max 9 options visible
+                return Math.min(contentHeight + 10, maxHeight)
+            }
             color: "white"
             border.color: "#ccc"
             border.width: 1
@@ -316,12 +501,13 @@ Item {
                         Rectangle {
                             width: parent.width
                             height: 25
-                            color: selectedItems.indexOf(modelData) !== -1 ? "#e3f2fd" : "transparent"
+                            color: selectedItems.indexOf(modelData) !== -1 ? "#e3f2fd" : (optionMouseArea.containsMouse ? "#f5f5f5" : "transparent")
 
                             Row {
                                 anchors.fill: parent
                                 anchors.leftMargin: 5
-                                spacing: 5
+                                anchors.rightMargin: 5
+                                spacing: 8
 
                                 Rectangle {
                                     width: 15
@@ -341,37 +527,185 @@ Item {
                                 }
 
                                 Text {
+                                    id: optionText
+                                    width: parent.width - 15 - 25 - 8 - 10  // Available width minus checkbox, trash icon, spacing, and margin
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: modelData
                                     font.pixelSize: 12
                                     color: "#333"
+                                    elide: Text.ElideRight  // Truncate text if too long
                                 }
+
+                                // Trash icon (always visible, higher opacity on hover)
+                                Text {
+                                    id: trashIcon
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: 20
+                                    height: 20
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                    text: "🗑️"
+                                    font.pixelSize: 12
+                                    color: "#666"
+                                    opacity: optionMouseArea.containsMouse ? 0.9 : 0.3
+                                }
+                            }
+
+                            MouseArea {
+                                id: optionMouseArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: function(mouse) {
+                                    if (mouse.x >= parent.width - 25) {
+                                        // Clicked on trash icon area - delete the option
+                                        deleteOption(modelData, allItems.indexOf(modelData))
+                                    } else {
+                                        // Clicked on option area - toggle selection
+                                        var index = selectedItems.indexOf(modelData)
+                                        var newSelection = selectedItems.slice()
+
+                                        if (index !== -1) {
+                                            // If already selected and maxSelections allows, remove it
+                                            if (maxSelections !== 1) {
+                                                newSelection.splice(index, 1)
+                                            }
+                                        } else {
+                                            // If not selected, add it
+                                            if (maxSelections === 1) {
+                                                // Single select mode - replace selection
+                                                newSelection = [modelData]
+                                            } else {
+                                                // Multi select mode - add to selection
+                                                newSelection.push(modelData)
+                                            }
+                                        }
+
+                                        selectedItems = newSelection
+                                        multiSelectionChanged(selectedItems)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Add new item option (only when hasAddFeature is true)
+                    Rectangle {
+                        visible: hasAddFeature
+                        width: parent.width
+                        height: addInput.visible ? 30 : 25
+                        color: "transparent"
+
+                        // Custom checkbox for the add item (always visible for consistency)
+                        Rectangle {
+                            id: addCheckbox
+                            anchors.left: parent.left
+                            anchors.leftMargin: 5
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 15
+                            height: 15
+                            border.color: "#666"
+                            border.width: 1
+                            color: addCheckboxChecked ? "#2196f3" : "white"
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "✓"
+                                color: "white"
+                                font.pixelSize: 10
+                                visible: addCheckboxChecked
                             }
 
                             MouseArea {
                                 anchors.fill: parent
                                 onClicked: {
-                                    var index = selectedItems.indexOf(modelData)
-                                    var newSelection = selectedItems.slice()
+                                    addCheckboxChecked = !addCheckboxChecked
+                                }
+                            }
+                        }
 
-                                    if (index !== -1) {
-                                        // If already selected and maxSelections allows, remove it
-                                        if (maxSelections !== 1) {
-                                            newSelection.splice(index, 1)
-                                        }
-                                    } else {
-                                        // If not selected, add it
+                        // Display text when not editing
+                        Text {
+                            id: addText
+                            anchors.left: addCheckbox.right
+                            anchors.leftMargin: 5
+                            anchors.right: parent.right
+                            anchors.rightMargin: 5
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: addPlaceholder
+                            font.pixelSize: 12
+                            font.italic: true
+                            color: "#666"
+                            visible: !addInput.visible
+                        }
+
+                        // Input field when editing
+                        TextInput {
+                            id: addInput
+                            anchors.left: addCheckbox.right
+                            anchors.leftMargin: 5
+                            anchors.right: parent.right
+                            anchors.rightMargin: 5
+                            anchors.verticalCenter: parent.verticalCenter
+                            font.pixelSize: 12
+                            color: "#333"
+                            visible: false
+                            clip: true
+
+                            onAccepted: { // Enter key pressed
+                                addNewItem()
+                            }
+
+                            onActiveFocusChanged: {
+                                if (!activeFocus && visible) {
+                                    addNewItem()
+                                }
+                            }
+
+                            function addNewItem() {
+                                var newItem = text.trim()
+                                if (newItem !== "" && allItems.indexOf(newItem) === -1) {
+                                    // Add to allItems
+                                    var newAllItems = allItems.slice()
+                                    newAllItems.push(newItem)
+                                    allItems = newAllItems
+
+                                    // Select the new item based on checkbox state
+                                    var newSelection = selectedItems.slice()
+                                    if (addCheckboxChecked) {
                                         if (maxSelections === 1) {
-                                            // Single select mode - replace selection
-                                            newSelection = [modelData]
+                                            newSelection = [newItem]
                                         } else {
-                                            // Multi select mode - add to selection
-                                            newSelection.push(modelData)
+                                            newSelection.push(newItem)
                                         }
                                     }
-
                                     selectedItems = newSelection
+
+                                    // Emit signals
+                                    addItem(newItem)
                                     multiSelectionChanged(selectedItems)
+
+                                    // Hide input and show text
+                                    text = ""
+                                    visible = false
+                                    addText.visible = true
+                                } else {
+                                    // Hide input and show text
+                                    text = ""
+                                    visible = false
+                                    addText.visible = true
+                                }
+                            }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: {
+                                if (!addInput.visible) {
+                                    addText.visible = false
+                                    addInput.visible = true
+                                    addCheckbox.visible = true
+                                    addCheckboxChecked = false  // Start unchecked
+                                    addInput.forceActiveFocus()
                                 }
                             }
                         }

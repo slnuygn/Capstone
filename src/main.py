@@ -44,13 +44,13 @@ engine.quit.connect(app.quit)
 
 # Add import paths for QML
 engine.addImportPath(os.path.join(project_root, "features", "preprocessing", "ui"))
-engine.addImportPath(os.path.join(project_root, "UI"))
+engine.addImportPath(os.path.join(project_root, "ui"))
 
 # Make instances available to QML
 engine.rootContext().setContextProperty("matlabExecutor", matlab_executor)
 engine.rootContext().setContextProperty("fileBrowser", file_browser)
 
-engine.load(QUrl.fromLocalFile(os.path.join(project_root, 'UI', 'main.qml')))
+engine.load(QUrl.fromLocalFile(os.path.join(project_root, 'ui', 'main.qml')))
 
 # Initialize file browser with the current data directory from MATLAB script
 current_data_dir = matlab_executor.getCurrentDataDirectory()

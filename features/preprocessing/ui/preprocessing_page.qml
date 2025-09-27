@@ -355,11 +355,77 @@ Item {
             width: parent.width
             spacing: 10
             
-            // Header text
-            Text {
-                text: "The .set files in this directory will be preprocessed."
-                font.pixelSize: 14
-                color: "#333"
+            // Header row with text and button
+            Row {
+                width: parent.width
+                height: 35
+                
+                // Header text
+                Text {
+                    id: headerText
+                    text: "The .set files in this directory will be preprocessed."
+                    font.pixelSize: 14
+                    color: "#333"
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                
+                // Spacer to push button to the right
+                Item {
+                    width: parent.width - headerText.width - runButton.width - 20
+                    height: 1
+                }
+                
+                // Run & Save button
+                Button {
+                    id: runButton
+                    text: preprocessingPageRoot.isProcessing ? "Processing..." : "Preprocess and Run ICA"
+                    width: 200
+                    height: 35
+                    enabled: !preprocessingPageRoot.isProcessing  // Disable during processing
+
+                    background: Rectangle {
+                        color: parent.enabled ? 
+                            (parent.pressed ? "#1976d2" : (parent.hovered ? "#2196f3" : "#2196f3")) :
+                            "#888888"  // Gray when disabled
+                        radius: 5
+                        border.color: parent.enabled ? "#1976d2" : "#666666"
+                        border.width: 1
+                    }
+
+                    contentItem: Text {
+                        text: parent.text
+                        color: parent.enabled ? "white" : "#cccccc"
+                        font.pixelSize: 12
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+
+                    onClicked: {
+                        // Set processing state to true
+                        preprocessingPageRoot.isProcessing = true
+                        
+                        var prestimValue = prestimPoststimSlider.firstValue
+                        var poststimValue = prestimPoststimSlider.secondValue
+                        var trialfunValue = trialfunDropdown.selectedItems.length > 0 ? trialfunDropdown.selectedItems[0] : ""
+                        var eventtypeValue = eventtypeDropdown.selectedItems.length > 0 ? eventtypeDropdown.selectedItems[0] : ""
+                        var selectedChannels = selectedChannels
+                        console.log("Running preprocessing and ICA:")
+                        console.log("cfg.trialdef.prestim =", prestimValue.toFixed(1))
+                        console.log("cfg.trialdef.poststim =", poststimValue.toFixed(1))
+                        console.log("cfg.trialfun =", trialfunValue)
+                        console.log("cfg.trialdef.eventtype =", eventtypeValue)
+                        console.log("selected channels =", selectedChannels)
+                        console.log("cfg.trialdef.eventvalue =", eventvalueDropdown.selectedItems)
+                        console.log("cfg.demean =", "yes")
+                        console.log("cfg.baselinewindow =", "[" + baselineSlider.firstValue + " " + baselineSlider.secondValue + "]")
+                        console.log("cfg.dftfilter =", "yes")
+                        console.log("cfg.dftfreq =", "[" + dftfreqSlider.firstValue + " " + dftfreqSlider.secondValue + "]")
+                        console.log("data path =", preprocessingPageRoot.currentFolder)
+                        
+                        // Call the new run and save method that includes MATLAB execution with ICA
+                        matlabExecutor.runAndSaveConfiguration(prestimValue, poststimValue, trialfunValue, eventtypeValue, selectedChannels, eventvalueDropdown.selectedItems, true, baselineSlider.firstValue, baselineSlider.secondValue, true, dftfreqSlider.firstValue, dftfreqSlider.secondValue, preprocessingPageRoot.currentFolder)
+                    }
+                }
             }
             
             // Scrollable content area
@@ -447,14 +513,25 @@ Item {
             matlabProperty: "cfg.trialfun"
             isMultiSelect: true
             maxSelections: 1
-            allItems: ["ft_trialfun_general", "alternative", "test1", "test2", "ddd", "aaa"]
+            allItems: ["ft_trialfun_general", "alternative"]
             selectedItems: ["ft_trialfun_general"]
-            hasAddFeature: false
+            hasAddFeature: true
+            addPlaceholder: "Add custom trialfun..."
 
             onMultiSelectionChanged: function(selected) {
                 if (selected.length > 0) {
                     matlabExecutor.saveTrialfunSelection(selected[0], 0)
                 }
+            }
+
+            onAddItem: function(newItem) {
+                // Save the custom option to the QML file
+                matlabExecutor.addCustomTrialfunOptionToAllItems(newItem)
+            }
+
+            onDeleteItem: function(itemToDelete) {
+                // Remove the custom option from the QML file
+                matlabExecutor.deleteCustomTrialfunOptionFromAllItems(itemToDelete)
             }
         }
 
@@ -465,14 +542,25 @@ Item {
             matlabProperty: "cfg.trialdef.eventtype"
             isMultiSelect: true
             maxSelections: 1
-            allItems: ["Stimulus", "alternative", "alt2", "alt3", "zzzzx"]
+            allItems: ["Stimulus", "alternative", "alt2", "alt3", "zzzzx", "sdsd"]
             selectedItems: ["Stimulus"]
-            hasAddFeature: false
+            hasAddFeature: true
+            addPlaceholder: "Add custom eventtype..."
 
             onMultiSelectionChanged: function(selected) {
                 if (selected.length > 0) {
                     matlabExecutor.saveEventtypeSelection(selected[0], 0)
                 }
+            }
+
+            onAddItem: function(newItem) {
+                // Save the custom option to the QML file
+                matlabExecutor.addCustomEventtypeOptionToAllItems(newItem)
+            }
+
+            onDeleteItem: function(itemToDelete) {
+                // Remove the custom option from the QML file
+                matlabExecutor.deleteCustomEventtypeOptionFromAllItems(itemToDelete)
             }
         }
 
@@ -484,10 +572,22 @@ Item {
             isMultiSelect: true
             allItems: ["S200", "S201", "S202"]
             selectedItems: ["S200", "S201", "S202"]
+            hasAddFeature: true
+            addPlaceholder: "Add custom eventvalue..."
 
             onMultiSelectionChanged: function(selected) {
                 // Handle multi-selection changes for eventvalues
                 console.log("Eventvalues selected:", selected)
+            }
+
+            onAddItem: function(newItem) {
+                // Save the custom option to the QML file
+                matlabExecutor.addCustomEventvalueOptionToAllItems(newItem)
+            }
+
+            onDeleteItem: function(itemToDelete) {
+                // Remove the custom option from the QML file
+                matlabExecutor.deleteCustomEventvalueOptionFromAllItems(itemToDelete)
             }
         }
 
@@ -495,24 +595,34 @@ Item {
         // Channel Selection using DropdownTemplate
         DropdownTemplate {
             id: channelDropdown
-            width: parent.width
             label: "Choose Channels: " + getSelectedChannelsText()
             matlabProperty: "cfg.channel"
             isMultiSelect: true
             model: ["Fp1", "Fp2", "F7", "F3", "Fz", "F4", "F8", "C3", "Cz", "C4", "P3", "Pz", "P4", "T3", "T4", "T5", "T6", "O1", "O2", "Oz"]
             allItems: ["Fp1", "Fp2", "F7", "F3", "Fz", "F4", "F8", "C3", "Cz", "C4", "P3", "Pz", "P4", "T3", "T4", "T5", "T6", "O1", "O2", "Oz"]
             selectedItems: ["F4", "Fz", "C3", "Pz", "P3", "O1", "Oz", "O2", "P4", "Cz", "C4"]
+            hasAddFeature: true
+            addPlaceholder: "Add custom channel..."
 
             onMultiSelectionChanged: {
                 // Update the selectedChannels property for backward compatibility
                 selectedChannels = selectedItems
+            }
+
+            onAddItem: function(newItem) {
+                // Save the custom option to the QML file
+                matlabExecutor.addCustomChannelOptionToAllItems(newItem)
+            }
+
+            onDeleteItem: function(itemToDelete) {
+                // Remove the custom option from the QML file
+                matlabExecutor.deleteCustomChannelOptionFromAllItems(itemToDelete)
             }
         }
 
         // Prestim/Poststim Range Slider using RangeSliderTemplate
         RangeSliderTemplate {
             id: prestimPoststimSlider
-            width: parent.width
             label: "Trial Time Window (seconds)"
             matlabProperty: "cfg.trialdef"
             from: 0.0
@@ -530,7 +640,6 @@ Item {
         // Baseline window range slider using RangeSliderTemplate
         RangeSliderTemplate {
             id: baselineSlider
-            width: parent.width
             label: "Baseline Window (seconds)"
             matlabProperty: "cfg.baselinewindow"
             from: -0.5
@@ -548,7 +657,6 @@ Item {
         // DFT Freq range slider using RangeSliderTemplate
         RangeSliderTemplate {
             id: dftfreqSlider
-            width: parent.width
             label: "DFT Frequency Range (Hz)"
             matlabProperty: "cfg.dftfreq"
             from: 45
@@ -560,63 +668,6 @@ Item {
 
             onRangeChanged: {
                 // DFT frequency values updated, will be used when running preprocessing
-            }
-        }
-
-        // Run & Save button - Center using Item wrapper
-        Item {
-            width: parent.width
-            height: 35
-            
-            Button {
-                text: preprocessingPageRoot.isProcessing ? "Processing..." : "Preprocess and Run ICA"
-                width: 200
-                height: 35
-                anchors.centerIn: parent
-                enabled: !preprocessingPageRoot.isProcessing  // Disable during processing
-
-            background: Rectangle {
-                color: parent.enabled ? 
-                    (parent.pressed ? "#1976d2" : (parent.hovered ? "#2196f3" : "#2196f3")) :
-                    "#888888"  // Gray when disabled
-                radius: 5
-                border.color: parent.enabled ? "#1976d2" : "#666666"
-                border.width: 1
-            }
-
-            contentItem: Text {
-                text: parent.text
-                color: parent.enabled ? "white" : "#cccccc"
-                font.pixelSize: 12
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-            }
-
-            onClicked: {
-                // Set processing state to true
-                preprocessingPageRoot.isProcessing = true
-                
-                var prestimValue = prestimPoststimSlider.firstValue
-                var poststimValue = prestimPoststimSlider.secondValue
-                var trialfunValue = trialfunDropdown.selectedItems.length > 0 ? trialfunDropdown.selectedItems[0] : ""
-                var eventtypeValue = eventtypeDropdown.selectedItems.length > 0 ? eventtypeDropdown.selectedItems[0] : ""
-                var selectedChannels = selectedChannels
-                console.log("Running preprocessing and ICA:")
-                console.log("cfg.trialdef.prestim =", prestimValue.toFixed(1))
-                console.log("cfg.trialdef.poststim =", poststimValue.toFixed(1))
-                console.log("cfg.trialfun =", trialfunValue)
-                console.log("cfg.trialdef.eventtype =", eventtypeValue)
-                console.log("selected channels =", selectedChannels)
-                console.log("cfg.trialdef.eventvalue =", eventvalueDropdown.selectedItems)
-                console.log("cfg.demean =", "yes")
-                console.log("cfg.baselinewindow =", "[" + baselineSlider.firstValue + " " + baselineSlider.secondValue + "]")
-                console.log("cfg.dftfilter =", "yes")
-                console.log("cfg.dftfreq =", "[" + dftfreqSlider.firstValue + " " + dftfreqSlider.secondValue + "]")
-                console.log("data path =", preprocessingPageRoot.currentFolder)
-                
-                // Call the new run and save method that includes MATLAB execution with ICA
-                matlabExecutor.runAndSaveConfiguration(prestimValue, poststimValue, trialfunValue, eventtypeValue, selectedChannels, eventvalueDropdown.selectedItems, true, baselineSlider.firstValue, baselineSlider.secondValue, true, dftfreqSlider.firstValue, dftfreqSlider.secondValue, preprocessingPageRoot.currentFolder)
-            }
             }
         }
 
