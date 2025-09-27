@@ -877,6 +877,9 @@ if nargout
   % add the updated events to the output cfg
   cfg.event = opt.event;
   
+  % add the rejected ICs to the output cfg
+  cfg.rejected_ICs = opt.reject_ICs;
+  
 end % if nargout
 
 % do the general cleanup and bookkeeping at the end of the function
@@ -1694,11 +1697,16 @@ switch key
     end
   case 'rc'
     % reject IC button - click to identify and reject ICA components (using exact identify button logic)
-    % Use current trial as subject identifier (each trial = one subject's ICA data)
-    current_subject = opt.trlop;
-    if current_subject < 1 || current_subject > opt.num_subjects
-      fprintf('Warning: current trial (%d) outside subject range (1-%d). Using subject 1.\n', current_subject, opt.num_subjects);
-      current_subject = 1;
+    % Use subject index passed from browse_ICA.m, or fall back to trial-based logic
+    if isfield(cfg, 'current_subject_index') && ~isempty(cfg.current_subject_index)
+      current_subject = cfg.current_subject_index;
+    else
+      % Fallback to trial-based logic for backward compatibility
+      current_subject = opt.trlop;
+      if current_subject < 1 || current_subject > opt.num_subjects
+        fprintf('Warning: current trial (%d) outside subject range (1-%d). Using subject 1.\n', current_subject, opt.num_subjects);
+        current_subject = 1;
+      end
     end
     
     % Delete any previous rejected IC highlights
@@ -1794,67 +1802,7 @@ switch key
       end
     end
     
-    % Auto-save the reject array after each rejection
-    timestamp = datestr(now, 'yyyy-mm-dd_HH-MM-SS');
-    filename = sprintf('rejected_ICs_auto_%s.m', timestamp);
     
-    % Open file for writing
-    fid = fopen(filename, 'w');
-    if fid ~= -1
-      % Write header
-      fprintf(fid, '%% Rejected ICA Components Array (Auto-saved)\n');
-      fprintf(fid, '%% Generated on: %s\n', datestr(now));
-      fprintf(fid, '%% Last rejection: Subject %d, IC %d (%s)\n', current_subject, IC_number, IC_label);
-      fprintf(fid, '%% Total subjects: %d\n\n', length(opt.reject_ICs));
-      
-      % Build simple array format: data_ICArejects = [subject1, subject2, subject3, ...]
-      fprintf(fid, 'data_ICArejects = [');
-      
-      for subj = 1:length(opt.reject_ICs)
-        if isequal(opt.reject_ICs{subj}, 0)
-          % No rejected components for this subject
-          fprintf(fid, '0');
-        elseif iscell(opt.reject_ICs{subj})
-          % Multiple rejected components - write as (IC1,IC2,IC3)
-          ic_numbers_save = cell2mat(opt.reject_ICs{subj});
-          if length(ic_numbers_save) == 1
-            fprintf(fid, '%d', ic_numbers_save);
-          else
-            fprintf(fid, '(%s)', strrep(num2str(ic_numbers_save), ' ', ','));
-          end
-        else
-          % Single rejected component
-          fprintf(fid, '%d', opt.reject_ICs{subj});
-        end
-        
-        % Add comma separator except for last element
-        if subj < length(opt.reject_ICs)
-          fprintf(fid, ', ');
-        end
-      end
-      
-      fprintf(fid, '];\n\n');
-      
-      % Write summary
-      total_rejected = 0;
-      subjects_with_rejected = 0;
-      
-      for subj = 1:length(opt.reject_ICs)
-        if ~isequal(opt.reject_ICs{subj}, 0)
-          subjects_with_rejected = subjects_with_rejected + 1;
-          if iscell(opt.reject_ICs{subj})
-            total_rejected = total_rejected + length(opt.reject_ICs{subj});
-          else
-            total_rejected = total_rejected + 1;
-          end
-        end
-      end
-      
-      fprintf(fid, '%% Summary: %d subjects with rejected components, %d total rejections\n', subjects_with_rejected, total_rejected);
-      
-      fclose(fid);
-      fprintf('Auto-saved reject array to: %s\n', filename);
-    end
     
   case 's'
     % toggle between selectmode options
