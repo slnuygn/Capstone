@@ -10,24 +10,28 @@ Rectangle {
     // Properties for menu states
     property bool fileMenuOpen: false
     property bool matlabSubmenuOpen: false
+    property bool editMenuOpen: false
+    property bool editModeChecked: false
     
     // Signals for communication with parent
     signal fieldtripDialogRequested()
     signal folderDialogRequested()
     signal createFunctionRequested()
     signal createScriptRequested()
-    signal menuStateChanged(bool fileMenuOpen, bool matlabSubmenuOpen)
+    signal editModeToggled(bool checked)
+    signal menuStateChanged(bool fileMenuOpen, bool matlabSubmenuOpen, bool editMenuOpen)
     
     // Function to close menus (can be called from parent)
     function closeMenus() {
         fileMenuOpen = false
         matlabSubmenuOpen = false
-        menuStateChanged(fileMenuOpen, matlabSubmenuOpen)
+        editMenuOpen = false
+        menuStateChanged(fileMenuOpen, matlabSubmenuOpen, editMenuOpen)
     }
     
     // Function to emit menu state changes
     function updateMenuState() {
-        menuStateChanged(fileMenuOpen, matlabSubmenuOpen)
+        menuStateChanged(fileMenuOpen, matlabSubmenuOpen, editMenuOpen)
     }
     
     // Bottom border
@@ -68,9 +72,10 @@ Rectangle {
                     topMenuComponent.fileMenuOpen = !topMenuComponent.fileMenuOpen
                     if (topMenuComponent.fileMenuOpen) {
                         topMenuComponent.matlabSubmenuOpen = false
+                        topMenuComponent.editMenuOpen = false
                     }
                     console.log("File menu new state:", topMenuComponent.fileMenuOpen)
-                    topMenuComponent.menuStateChanged(topMenuComponent.fileMenuOpen, topMenuComponent.matlabSubmenuOpen)
+                    topMenuComponent.menuStateChanged(topMenuComponent.fileMenuOpen, topMenuComponent.matlabSubmenuOpen, topMenuComponent.editMenuOpen)
                 }
             }
         }
@@ -95,8 +100,14 @@ Rectangle {
                 anchors.fill: parent
                 hoverEnabled: true
                 onClicked: {
-                    console.log("Edit menu clicked")
-                    // TODO: Implement edit menu dropdown
+                    console.log("Edit menu clicked, current state:", topMenuComponent.editMenuOpen)
+                    topMenuComponent.editMenuOpen = !topMenuComponent.editMenuOpen
+                    if (topMenuComponent.editMenuOpen) {
+                        topMenuComponent.fileMenuOpen = false
+                        topMenuComponent.matlabSubmenuOpen = false
+                    }
+                    console.log("Edit menu new state:", topMenuComponent.editMenuOpen)
+                    topMenuComponent.menuStateChanged(topMenuComponent.fileMenuOpen, topMenuComponent.matlabSubmenuOpen, topMenuComponent.editMenuOpen)
                 }
             }
         }

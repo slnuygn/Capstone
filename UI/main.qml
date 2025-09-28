@@ -140,9 +140,18 @@ ApplicationWindow {
             // TODO: Implement script creation
         }
         
-        onMenuStateChanged: function(fileMenuOpen, matlabSubmenuOpen) {
+        onEditModeToggled: function(checked) {
+            console.log("Edit mode toggled:", checked)
+            // Forward to preprocessing page
+            if (preprocessingPageLoader.item) {
+                preprocessingPageLoader.item.setEditMode(checked)
+            }
+        }
+        
+        onMenuStateChanged: function(fileMenuOpen, matlabSubmenuOpen, editMenuOpen) {
             fileDropdownMenu.visible = fileMenuOpen
             matlabSubmenu.visible = matlabSubmenuOpen && fileMenuOpen
+            editDropdownMenu.visible = editMenuOpen
         }
     }
 
@@ -368,6 +377,86 @@ ApplicationWindow {
         }
     }
 
+    // Edit Menu Dropdown (positioned absolutely at window level)
+    Rectangle {
+        id: editDropdownMenu
+        x: 10 + 50  // Position relative to Edit menu button (File menu width + spacing)
+        y: topMenuBar.height  // Position directly below the menu bar
+        width: 150
+        height: 40
+        color: "white"
+        border.color: "#ccc"
+        border.width: 1
+        radius: 4
+        visible: false
+        z: 10000
+
+        // Drop shadow effect
+        Rectangle {
+            anchors.fill: parent
+            anchors.topMargin: 2
+            anchors.leftMargin: 2
+            color: "#00000020"
+            radius: 4
+            z: -1
+        }
+
+        Column {
+            anchors.fill: parent
+            anchors.margins: 2
+
+            // Edit Mode checkbox
+            Rectangle {
+                width: parent.width
+                height: 35
+                color: editModeMouseArea.containsMouse ? "#f8f9fa" : "white"
+
+                Row {
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.leftMargin: 10
+                    spacing: 10
+
+                    // Checkbox
+                    Rectangle {
+                        width: 15
+                        height: 15
+                        border.color: "#666"
+                        border.width: 1
+                        color: topMenuBar.editModeChecked ? "#2196f3" : "white"
+                        radius: 2
+
+                        Text {
+                            text: topMenuBar.editModeChecked ? "✓" : ""
+                            color: "white"
+                            font.pixelSize: 10
+                            anchors.centerIn: parent
+                        }
+                    }
+
+                    Text {
+                        text: "Edit Mode"
+                        font.pixelSize: 12
+                        color: "#333"
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                }
+
+                MouseArea {
+                    id: editModeMouseArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked: {
+                        topMenuBar.editModeChecked = !topMenuBar.editModeChecked
+                        topMenuBar.editModeToggled(topMenuBar.editModeChecked)
+                        console.log("Edit mode toggled:", topMenuBar.editModeChecked)
+                        // Keep menu open for now
+                    }
+                }
+            }
+        }
+    }
+
     // MouseArea to close menus when clicking outside
     MouseArea {
         anchors.fill: parent
@@ -377,6 +466,7 @@ ApplicationWindow {
             topMenuBar.closeMenus()
             fileDropdownMenu.visible = false
             matlabSubmenu.visible = false
+            editDropdownMenu.visible = false
         }
         
         // Allow scroll events to pass through to underlying ScrollView

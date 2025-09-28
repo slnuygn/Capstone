@@ -136,6 +136,24 @@ Item {
         return eventvalueDropdown.selectedItems.length
     }
 
+    // Function to handle edit mode toggle from TopMenu
+    function setEditMode(editModeEnabled) {
+        var newState = editModeEnabled ? "edit" : "default"
+        
+        // Update all dropdown states
+        trialfunDropdown.dropdownState = newState
+        eventtypeDropdown.dropdownState = newState
+        eventvalueDropdown.dropdownState = newState
+        channelDropdown.dropdownState = newState
+        
+        // Update all slider states
+        prestimPoststimSlider.sliderState = newState
+        baselineSlider.sliderState = newState
+        dftfreqSlider.sliderState = newState
+        
+        console.log("Edit mode set to:", newState)
+    }
+
     // Background area to close dropdown when clicking outside (removed MouseArea to fix scrolling)
 
     // File Explorer Rectangle - Direct implementation
@@ -552,7 +570,7 @@ Item {
             selectedItems: ["Stimulus"]
             hasAddFeature: true
             addPlaceholder: "Add custom eventtype..."
-            dropdownState: "edit"
+            dropdownState: "default"
 
             onMultiSelectionChanged: function(selected) {
                 if (selected.length > 0) {
@@ -655,7 +673,7 @@ Item {
             secondValue: 1.0
             stepSize: 0.1
             unit: ""
-            sliderState: "edit"
+            sliderState: "default"
             sliderId: "prestimPoststimSlider"
 
             onRangeChanged: {
