@@ -65,6 +65,7 @@ Item {
     
     // Property for backward compatibility with selectedChannels
     property var selectedChannels: ["F4", "Fz", "C3", "Pz", "P3", "O1", "Oz", "O2", "P4", "Cz", "C4"]
+    property bool editModeEnabled: false  // Track edit mode state
     
     // JavaScript functions for channel selection
     function isChannelSelected(channel) {
@@ -138,6 +139,7 @@ Item {
 
     // Function to handle edit mode toggle from TopMenu
     function setEditMode(editModeEnabled) {
+        preprocessingPageRoot.editModeEnabled = editModeEnabled
         var newState = editModeEnabled ? "edit" : "default"
         
         // Update all dropdown states
@@ -373,10 +375,11 @@ Item {
             width: parent.width
             spacing: 10
             
-            // Header row with text and button
+            // Header row with text and buttons
             Row {
                 width: parent.width
                 height: 35
+                spacing: 10  // Add spacing between elements
                 
                 // Header text
                 Text {
@@ -387,10 +390,124 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                 }
                 
-                // Spacer to push button to the right
+                // Spacer to push buttons to the right
                 Item {
-                    width: parent.width - headerText.width - runButton.width - 20
+                    width: addButton.visible ? 
+                        (parent.width - headerText.width - addButton.width - runButton.width - 100 - parent.spacing * 3) :
+                        (parent.width - headerText.width - runButton.width - 100 - parent.spacing * 2)
                     height: 1
+                }
+                
+                // Add button with dropdown menu
+                Rectangle {
+                    id: addButton
+                    width: 80
+                    height: 35
+                    visible: preprocessingPageRoot.editModeEnabled
+                    property bool menuOpen: false
+                    
+                    color: mouseArea.containsMouse ? "#f5f5f5" : "transparent"
+                    radius: 5
+                    border.color: "#2196f3"
+                    border.width: 1
+                    
+                    Text {
+                        text: "Add ▼"
+                        color: "#2196f3"
+                        font.pixelSize: 12
+                        anchors.centerIn: parent
+                    }
+                    
+                    MouseArea {
+                        id: mouseArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onClicked: {
+                            addButton.menuOpen = !addButton.menuOpen
+                        }
+                    }
+                    
+                    // Add dropdown menu (styled like main.qml dropdowns)
+                    Rectangle {
+                        id: addMenuPopup
+                        x: 0
+                        y: addButton.height
+                        width: 150
+                        height: 80
+                        color: "white"
+                        border.color: "#ccc"
+                        border.width: 1
+                        radius: 4
+                        visible: addButton.menuOpen
+                        z: 10000
+                        
+                        // Drop shadow effect
+                        Rectangle {
+                            anchors.fill: parent
+                            anchors.topMargin: 2
+                            anchors.leftMargin: 2
+                            color: "#00000020"
+                            radius: 4
+                            z: -1
+                        }
+                        
+                        Column {
+                            anchors.fill: parent
+                            anchors.margins: 2
+                            
+                            // Range Slider menu item
+                            Rectangle {
+                                width: parent.width
+                                height: 35
+                                color: rangeSliderArea.containsMouse ? "#f8f9fa" : "white"
+                                
+                                Text {
+                                    text: "Range Slider"
+                                    anchors.left: parent.left
+                                    anchors.leftMargin: 10
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    font.pixelSize: 12
+                                    color: "#333"
+                                }
+                                
+                                MouseArea {
+                                    id: rangeSliderArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    onClicked: {
+                                        console.log("Range Slider selected")
+                                        addButton.menuOpen = false
+                                    }
+                                }
+                            }
+                            
+                            // Dropdown Menu item
+                            Rectangle {
+                                width: parent.width
+                                height: 35
+                                color: dropdownMenuArea.containsMouse ? "#f8f9fa" : "white"
+                                
+                                Text {
+                                    text: "Dropdown Menu"
+                                    anchors.left: parent.left
+                                    anchors.leftMargin: 10
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    font.pixelSize: 12
+                                    color: "#333"
+                                }
+                                
+                                MouseArea {
+                                    id: dropdownMenuArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    onClicked: {
+                                        console.log("Dropdown Menu selected")
+                                        addButton.menuOpen = false
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
                 
                 // Run & Save button
