@@ -1,4 +1,4 @@
-# Capstone EEG Preprocessing Application
+# Capstone EEG Preprocessing Application (Current State)
 
 A modern, user-friendly GUI application for EEG data preprocessing using MATLAB and FieldTrip, built with Python and Qt/QML.
 
