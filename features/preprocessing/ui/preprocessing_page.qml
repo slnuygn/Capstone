@@ -631,9 +631,16 @@ Item {
             secondValue: 1.0
             stepSize: 0.1
             unit: ""
+            sliderState: "edit"
+            sliderId: "prestimPoststimSlider"
 
             onRangeChanged: {
                 // Range values updated, will be used when running preprocessing
+            }
+
+            onDeleteRequested: {
+                // Handle deletion of this slider
+                prestimPoststimSlider.visible = false
             }
         }
 
@@ -643,14 +650,21 @@ Item {
             label: "Baseline Window (seconds)"
             matlabProperty: "cfg.baselinewindow"
             from: -0.5
-            to: 0.5
+            to: 0.6
             firstValue: -0.2
             secondValue: 0.0
             stepSize: 0.1
             unit: ""
+            sliderState: "default"
+            sliderId: "baselineSlider"
 
             onRangeChanged: {
                 // Baseline values updated, will be used when running preprocessing
+            }
+
+            onDeleteRequested: {
+                // Handle deletion of this slider
+                baselineSlider.visible = false
             }
         }
 
@@ -659,15 +673,22 @@ Item {
             id: dftfreqSlider
             label: "DFT Frequency Range (Hz)"
             matlabProperty: "cfg.dftfreq"
-            from: 45
-            to: 65
-            firstValue: 50
-            secondValue: 60
+            from: 45.0
+            to: 70.0
+            firstValue: 50.0
+            secondValue: 60.0
             stepSize: 1
             unit: ""
+            sliderState: "default"
+            sliderId: "dftfreqSlider"
 
             onRangeChanged: {
                 // DFT frequency values updated, will be used when running preprocessing
+            }
+
+            onDeleteRequested: {
+                // Handle deletion of this slider
+                dftfreqSlider.visible = false
             }
         }
 

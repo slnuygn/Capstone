@@ -1491,6 +1491,107 @@ browse_ICA('{mat_file_path.replace(chr(92), '/')}');
             
             return False
             
+            return False
+            
         except Exception as e:
             print(f"Error removing custom channel option from allItems: {str(e)}")
+            return False
+
+    @pyqtSlot(float, float, float, float)
+    def updateBaselineSliderValues(self, from_val, to_val, first_val, second_val):
+        """Update the baseline slider values in the QML file"""
+        try:
+            qml_file_path = "../features/preprocessing/ui/preprocessing_page.qml"
+            
+            # Read the current QML file
+            with open(qml_file_path, 'r', encoding='utf-8') as file:
+                content = file.read()
+            
+            # Update from value
+            content = re.sub(r'(id: baselineSlider.*?from:) [\d\.\-]+', f'\\1 {from_val}', content, flags=re.DOTALL)
+            
+            # Update to value
+            content = re.sub(r'(id: baselineSlider.*?to:) [\d\.\-]+', f'\\1 {to_val}', content, flags=re.DOTALL)
+            
+            # Update firstValue
+            content = re.sub(r'(id: baselineSlider.*?firstValue:) [\d\.\-]+', f'\\1 {first_val}', content, flags=re.DOTALL)
+            
+            # Update secondValue
+            content = re.sub(r'(id: baselineSlider.*?secondValue:) [\d\.\-]+', f'\\1 {second_val}', content, flags=re.DOTALL)
+            
+            # Write back to file
+            with open(qml_file_path, 'w', encoding='utf-8') as file:
+                file.write(content)
+            
+            print(f"Updated baseline slider values: from={from_val}, to={to_val}, firstValue={first_val}, secondValue={second_val}")
+            return True
+            
+        except Exception as e:
+            print(f"Error updating baseline slider values: {str(e)}")
+            return False
+
+    @pyqtSlot(float, float, float, float)
+    def updatePrestimPoststimSliderValues(self, from_val, to_val, first_val, second_val):
+        """Update the prestim/poststim slider values in the QML file"""
+        try:
+            qml_file_path = "../features/preprocessing/ui/preprocessing_page.qml"
+            
+            # Read the current QML file
+            with open(qml_file_path, 'r', encoding='utf-8') as file:
+                content = file.read()
+            
+            # Update from value
+            content = re.sub(r'(id: prestimPoststimSlider.*?from:) [\d\.\-]+', f'\\1 {from_val}', content, flags=re.DOTALL)
+            
+            # Update to value
+            content = re.sub(r'(id: prestimPoststimSlider.*?to:) [\d\.\-]+', f'\\1 {to_val}', content, flags=re.DOTALL)
+            
+            # Update firstValue
+            content = re.sub(r'(id: prestimPoststimSlider.*?firstValue:) [\d\.\-]+', f'\\1 {first_val}', content, flags=re.DOTALL)
+            
+            # Update secondValue
+            content = re.sub(r'(id: prestimPoststimSlider.*?secondValue:) [\d\.\-]+', f'\\1 {second_val}', content, flags=re.DOTALL)
+            
+            # Write back to file
+            with open(qml_file_path, 'w', encoding='utf-8') as file:
+                file.write(content)
+            
+            print(f"Updated prestim/poststim slider values: from={from_val}, to={to_val}, firstValue={first_val}, secondValue={second_val}")
+            return True
+            
+        except Exception as e:
+            print(f"Error updating prestim/poststim slider values: {str(e)}")
+            return False
+
+    @pyqtSlot(float, float, float, float)
+    def updateDftfreqSliderValues(self, from_val, to_val, first_val, second_val):
+        """Update the DFT frequency slider values in the QML file"""
+        try:
+            qml_file_path = "../features/preprocessing/ui/preprocessing_page.qml"
+            
+            # Read the current QML file
+            with open(qml_file_path, 'r', encoding='utf-8') as file:
+                content = file.read()
+            
+            # Update from value
+            content = re.sub(r'(id: dftfreqSlider.*?from:) [\d\.\-]+', f'\\1 {from_val}', content, flags=re.DOTALL)
+            
+            # Update to value
+            content = re.sub(r'(id: dftfreqSlider.*?to:) [\d\.\-]+', f'\\1 {to_val}', content, flags=re.DOTALL)
+            
+            # Update firstValue
+            content = re.sub(r'(id: dftfreqSlider.*?firstValue:) [\d\.\-]+', f'\\1 {first_val}', content, flags=re.DOTALL)
+            
+            # Update secondValue
+            content = re.sub(r'(id: dftfreqSlider.*?secondValue:) [\d\.\-]+', f'\\1 {second_val}', content, flags=re.DOTALL)
+            
+            # Write back to file
+            with open(qml_file_path, 'w', encoding='utf-8') as file:
+                file.write(content)
+            
+            print(f"Updated DFT frequency slider values: from={from_val}, to={to_val}, firstValue={first_val}, secondValue={second_val}")
+            return True
+            
+        except Exception as e:
+            print(f"Error updating DFT frequency slider values: {str(e)}")
             return False
