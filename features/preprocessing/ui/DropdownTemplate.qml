@@ -20,6 +20,8 @@ Item {
     property var allItems: [] // For multi-select
     property bool addCheckboxChecked: false // For add item checkbox state
 
+    property string dropdownState: "default"  // "default" or "edit"
+
     // Dynamic z-index management
     property int baseZ: 1000
     property int activeZ: 2000
@@ -36,6 +38,7 @@ Item {
     signal addItem(string newItem)
     signal deleteItem(string itemToDelete)
     signal multiSelectionChanged(var selected)
+    signal deleteRequested()
 
     // Function to get display text for multi-select
     function getMultiSelectText() {
@@ -113,10 +116,19 @@ Item {
             color: "#666"
             wrapMode: Text.Wrap
             width: parent.width
+
+            // Double-click to enter edit mode
+            MouseArea {
+                anchors.fill: parent
+                onDoubleClicked: {
+                    dropdownState = "edit"
+                }
+            }
         }
 
         // Single-select interface
         Row {
+            id: singleSelectRow
             width: parent.width
             spacing: 8
             visible: !isMultiSelect
@@ -193,7 +205,8 @@ Item {
                 visible: false
                 width: parent.width
                 height: {
-                    var itemCount = comboBox.model.length + (hasAddFeature ? 1 : 0)
+                    var addVisible = hasAddFeature && dropdownTemplate.dropdownState === "edit"
+                    var itemCount = comboBox.model.length + (addVisible ? 1 : 0)
                     var contentHeight = itemCount * 25 + Math.max(0, itemCount - 1) * 2
                     var maxHeight = 8 * 25 + 7 * 2 + 10  // Max 8 options visible
                     return Math.min(contentHeight + 10, maxHeight)
@@ -239,7 +252,7 @@ Item {
                                         elide: Text.ElideRight  // Truncate text if too long
                                     }
 
-                                    // Trash icon (always visible, higher opacity on hover)
+                                    // Trash icon (visible only in edit mode, higher opacity on hover)
                                     Text {
                                         id: trashIcon
                                         anchors.verticalCenter: parent.verticalCenter
@@ -251,6 +264,7 @@ Item {
                                         font.pixelSize: 12
                                         color: "#666"
                                         opacity: optionMouseArea.containsMouse ? 0.9 : 0.3
+                                        visible: dropdownTemplate.dropdownState === "edit"
                                     }
                                 }
 
@@ -259,7 +273,7 @@ Item {
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     onClicked: function(mouse) {
-                                        if (mouse.x >= parent.width - 25) {
+                                        if (dropdownTemplate.dropdownState === "edit" && mouse.x >= parent.width - 25) {
                                             // Clicked on trash icon area - delete the option
                                             deleteOption(modelData, index)
                                         } else {
@@ -273,9 +287,9 @@ Item {
                             }
                         }
 
-                        // Add new item option (only when hasAddFeature is true)
+                        // Add new item option (only when hasAddFeature is true and in edit mode)
                         Rectangle {
-                            visible: hasAddFeature
+                            visible: hasAddFeature && dropdownState === "edit"
                             width: parent.width
                             height: singleAddInput.visible ? 30 : 25
                             color: "transparent"
@@ -377,6 +391,7 @@ Item {
 
         // Multi-select interface
         Rectangle {
+            id: multiSelectDisplay
             visible: isMultiSelect
             width: parent.width
             height: 30
@@ -417,7 +432,8 @@ Item {
             visible: false
             width: parent.width
             height: {
-                var itemCount = (maxSelections !== 1 ? 1 : 0) + allItems.length + (hasAddFeature ? 1 : 0)
+                var addVisible = hasAddFeature && dropdownTemplate.dropdownState === "edit"
+                var itemCount = (maxSelections !== 1 ? 1 : 0) + allItems.length + (addVisible ? 1 : 0)
                 var contentHeight = itemCount * 25 + Math.max(0, itemCount - 1) * 2
                 var maxHeight = 9 * 25 + 8 * 2 + 10  // Max 9 options visible
                 return Math.min(contentHeight + 10, maxHeight)
@@ -536,7 +552,7 @@ Item {
                                     elide: Text.ElideRight  // Truncate text if too long
                                 }
 
-                                // Trash icon (always visible, higher opacity on hover)
+                                // Trash icon (visible only in edit mode, higher opacity on hover)
                                 Text {
                                     id: trashIcon
                                     anchors.verticalCenter: parent.verticalCenter
@@ -548,6 +564,7 @@ Item {
                                     font.pixelSize: 12
                                     color: "#666"
                                     opacity: optionMouseArea.containsMouse ? 0.9 : 0.3
+                                    visible: dropdownTemplate.dropdownState === "edit"
                                 }
                             }
 
@@ -556,7 +573,7 @@ Item {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 onClicked: function(mouse) {
-                                    if (mouse.x >= parent.width - 25) {
+                                    if (dropdownTemplate.dropdownState === "edit" && mouse.x >= parent.width - 25) {
                                         // Clicked on trash icon area - delete the option
                                         deleteOption(modelData, allItems.indexOf(modelData))
                                     } else {
@@ -588,9 +605,9 @@ Item {
                         }
                     }
 
-                    // Add new item option (only when hasAddFeature is true)
+                    // Add new item option (only when hasAddFeature is true and in edit mode)
                     Rectangle {
-                        visible: hasAddFeature
+                        visible: hasAddFeature && dropdownState === "edit"
                         width: parent.width
                         height: addInput.visible ? 30 : 25
                         color: "transparent"
@@ -710,6 +727,37 @@ Item {
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+
+    // Icons - only visible in edit mode, positioned to the right of the display
+    Column {
+        x: (isMultiSelect ? multiSelectDisplay : singleSelectRow).x + (isMultiSelect ? multiSelectDisplay : singleSelectRow).width + 15
+        y: (isMultiSelect ? multiSelectDisplay : singleSelectRow).y + (isMultiSelect ? multiSelectDisplay : singleSelectRow).height / 2 - height / 2
+        spacing: 5
+        visible: dropdownState === "edit"
+
+        // Trash icon
+        Rectangle {
+            width: 25
+            height: 25
+            color: "transparent"
+            border.color: "#ccc"
+            border.width: 1
+            radius: 3
+
+            Text {
+                anchors.centerIn: parent
+                text: "🗑️"
+                font.pixelSize: 12
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: {
+                    deleteRequested()
                 }
             }
         }

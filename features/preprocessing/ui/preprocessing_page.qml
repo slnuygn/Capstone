@@ -517,6 +517,7 @@ Item {
             selectedItems: ["ft_trialfun_general"]
             hasAddFeature: true
             addPlaceholder: "Add custom trialfun..."
+            dropdownState: "default"
 
             onMultiSelectionChanged: function(selected) {
                 if (selected.length > 0) {
@@ -533,6 +534,11 @@ Item {
                 // Remove the custom option from the QML file
                 matlabExecutor.deleteCustomTrialfunOptionFromAllItems(itemToDelete)
             }
+
+            onDeleteRequested: {
+                // Handle deletion of this dropdown
+                trialfunDropdown.visible = false
+            }
         }
 
         // Eventtype dropdown
@@ -542,10 +548,11 @@ Item {
             matlabProperty: "cfg.trialdef.eventtype"
             isMultiSelect: true
             maxSelections: 1
-            allItems: ["Stimulus", "alternative", "alt2", "alt3", "zzzzx", "sdsd"]
+            allItems: ["Stimulus", "alternatives"]
             selectedItems: ["Stimulus"]
             hasAddFeature: true
             addPlaceholder: "Add custom eventtype..."
+            dropdownState: "edit"
 
             onMultiSelectionChanged: function(selected) {
                 if (selected.length > 0) {
@@ -562,6 +569,11 @@ Item {
                 // Remove the custom option from the QML file
                 matlabExecutor.deleteCustomEventtypeOptionFromAllItems(itemToDelete)
             }
+
+            onDeleteRequested: {
+                // Handle deletion of this dropdown
+                eventtypeDropdown.visible = false
+            }
         }
 
         // Eventvalue multi-select dropdown
@@ -574,6 +586,7 @@ Item {
             selectedItems: ["S200", "S201", "S202"]
             hasAddFeature: true
             addPlaceholder: "Add custom eventvalue..."
+            dropdownState: "default"
 
             onMultiSelectionChanged: function(selected) {
                 // Handle multi-selection changes for eventvalues
@@ -589,6 +602,11 @@ Item {
                 // Remove the custom option from the QML file
                 matlabExecutor.deleteCustomEventvalueOptionFromAllItems(itemToDelete)
             }
+
+            onDeleteRequested: {
+                // Handle deletion of this dropdown
+                eventvalueDropdown.visible = false
+            }
         }
 
         // Channel Selection
@@ -603,6 +621,7 @@ Item {
             selectedItems: ["F4", "Fz", "C3", "Pz", "P3", "O1", "Oz", "O2", "P4", "Cz", "C4"]
             hasAddFeature: true
             addPlaceholder: "Add custom channel..."
+            dropdownState: "default"
 
             onMultiSelectionChanged: {
                 // Update the selectedChannels property for backward compatibility
@@ -617,6 +636,11 @@ Item {
             onDeleteItem: function(itemToDelete) {
                 // Remove the custom option from the QML file
                 matlabExecutor.deleteCustomChannelOptionFromAllItems(itemToDelete)
+            }
+
+            onDeleteRequested: {
+                // Handle deletion of this dropdown
+                channelDropdown.visible = false
             }
         }
 
