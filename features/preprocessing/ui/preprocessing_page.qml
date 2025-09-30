@@ -48,7 +48,194 @@ Item {
     }
     
 
-    
+    // Top header with buttons
+    Row {
+        id: topHeader
+        width: parent.width
+        height: 35
+        spacing: 10
+        
+        // Header text
+        Text {
+            text: "The .set files in this directory will be preprocessed."
+            font.pixelSize: 14
+            color: "#333"
+            anchors.verticalCenter: parent.verticalCenter
+        }
+        
+        // Spacer to push buttons to the right
+        Item {
+            width: addButton.visible ? 
+                (parent.width - 400 - addButton.width - runButton.width - parent.spacing * 3) :
+                (parent.width - 400 - runButton.width - parent.spacing * 2)
+            height: 1
+        }
+        
+        // Add button with dropdown menu
+        Rectangle {
+            id: addButton
+            width: 80
+            height: 35
+            visible: preprocessingPageRoot.editModeEnabled
+            property bool menuOpen: false
+            
+            color: mouseArea.containsMouse ? "#f5f5f5" : "transparent"
+            radius: 5
+            border.color: "#2196f3"
+            border.width: 1
+            
+            Text {
+                text: "Add ▼"
+                color: "#2196f3"
+                font.pixelSize: 12
+                anchors.centerIn: parent
+            }
+            
+            MouseArea {
+                id: mouseArea
+                anchors.fill: parent
+                hoverEnabled: true
+                onClicked: {
+                    addButton.menuOpen = !addButton.menuOpen
+                }
+            }
+            
+            // Add dropdown menu (styled like main.qml dropdowns)
+            Rectangle {
+                id: addMenuPopup
+                x: 0
+                y: addButton.height
+                width: 150
+                height: 80
+                color: "white"
+                border.color: "#ccc"
+                border.width: 1
+                radius: 4
+                visible: addButton.menuOpen
+                z: 10000
+                
+                // Drop shadow effect
+                Rectangle {
+                    anchors.fill: parent
+                    anchors.topMargin: 2
+                    anchors.leftMargin: 2
+                    color: "#00000020"
+                    radius: 4
+                    z: -1
+                }
+                
+                Column {
+                    anchors.fill: parent
+                    anchors.margins: 2
+                    
+                    // Range Slider menu item
+                    Rectangle {
+                        width: parent.width
+                        height: 35
+                        color: rangeSliderArea.containsMouse ? "#f8f9fa" : "white"
+                        
+                        Text {
+                            text: "Range Slider"
+                            anchors.left: parent.left
+                            anchors.leftMargin: 10
+                            anchors.verticalCenter: parent.verticalCenter
+                            font.pixelSize: 12
+                            color: "#333"
+                        }
+                        
+                        MouseArea {
+                            id: rangeSliderArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onClicked: {
+                                console.log("Range Slider selected")
+                                addButton.menuOpen = false
+                            }
+                        }
+                    }
+                    
+                    // Dropdown Menu item
+                    Rectangle {
+                        width: parent.width
+                        height: 35
+                        color: dropdownMenuArea.containsMouse ? "#f8f9fa" : "white"
+                        
+                        Text {
+                            text: "Dropdown Menu"
+                            anchors.left: parent.left
+                            anchors.leftMargin: 10
+                            anchors.verticalCenter: parent.verticalCenter
+                            font.pixelSize: 12
+                            color: "#333"
+                        }
+                        
+                        MouseArea {
+                            id: dropdownMenuArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onClicked: {
+                                console.log("Dropdown Menu selected")
+                                addButton.menuOpen = false
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Run & Save button
+        Button {
+            id: runButton
+            text: preprocessingPageRoot.isProcessing ? "Processing..." : "Preprocess and Run ICA"
+            width: 200
+            height: 35
+            enabled: !preprocessingPageRoot.isProcessing  // Disable during processing
+
+            background: Rectangle {
+                color: parent.enabled ? 
+                    (parent.pressed ? "#1976d2" : (parent.hovered ? "#2196f3" : "#2196f3")) :
+                    "#888888"  // Gray when disabled
+                radius: 5
+                border.color: parent.enabled ? "#1976d2" : "#666666"
+                border.width: 1
+            }
+
+            contentItem: Text {
+                text: parent.text
+                color: parent.enabled ? "white" : "#cccccc"
+                font.pixelSize: 12
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+            }
+
+            onClicked: {
+                // Set processing state to true
+                preprocessingPageRoot.isProcessing = true
+                
+                var prestimValue = prestimPoststimSlider.firstValue
+                var poststimValue = prestimPoststimSlider.secondValue
+                var trialfunValue = trialfunDropdown.selectedItems.length > 0 ? trialfunDropdown.selectedItems[0] : ""
+                var eventtypeValue = eventtypeDropdown.selectedItems.length > 0 ? eventtypeDropdown.selectedItems[0] : ""
+                var selectedChannels = selectedChannels
+                console.log("Running preprocessing and ICA:")
+                console.log("cfg.trialdef.prestim =", prestimValue.toFixed(1))
+                console.log("cfg.trialdef.poststim =", poststimValue.toFixed(1))
+                console.log("cfg.trialfun =", trialfunValue)
+                console.log("cfg.trialdef.eventtype =", eventtypeValue)
+                console.log("selected channels =", selectedChannels)
+                console.log("cfg.trialdef.eventvalue =", eventvalueDropdown.selectedItems)
+                console.log("cfg.demean =", "yes")
+                console.log("cfg.baselinewindow =", "[" + baselineSlider.firstValue + " " + baselineSlider.secondValue + "]")
+                console.log("cfg.dftfilter =", "yes")
+                console.log("cfg.dftfreq =", "[" + dftfreqSlider.firstValue + " " + dftfreqSlider.secondValue + "]")
+                console.log("data path =", preprocessingPageRoot.currentFolder)
+                
+                // Call the new run and save method that includes MATLAB execution with ICA
+                matlabExecutor.runAndSaveConfiguration(prestimValue, poststimValue, trialfunValue, eventtypeValue, selectedChannels, eventvalueDropdown.selectedItems, true, baselineSlider.firstValue, baselineSlider.secondValue, true, dftfreqSlider.firstValue, dftfreqSlider.secondValue, preprocessingPageRoot.currentFolder)
+            }
+        }
+    }
+
     // Signals to communicate with main.qml
     signal openFolderDialog()
     signal openFieldtripDialog()
@@ -162,9 +349,10 @@ Item {
     Rectangle {
         id: fileExplorerRect
         anchors.left: parent.left
-        anchors.top: parent.top
+        anchors.top: topHeader.bottom
+        anchors.topMargin: 10
         width: parent.width * 0.2  // Slightly wider
-        height: parent.height  // Use full height!
+        height: parent.height - topHeader.height - 20  // Same height as right side
         color: "#f8f9fa"
         border.color: "#dee2e6"
         border.width: 2
@@ -362,7 +550,7 @@ Item {
     // Right side - Configuration Area with Scrolling (maximized space usage)
     Rectangle {
         anchors.left: fileExplorerRect.right
-        anchors.top: parent.top
+        anchors.top: topHeader.bottom
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         anchors.leftMargin: 10  // Reduced from 20
@@ -371,213 +559,20 @@ Item {
         anchors.bottomMargin: 10 // Aligned with file browser bottom edge
         color: "transparent"
         
-        Column {
-            width: parent.width
-            spacing: 10
+        // Scrollable content area - fills entire rectangle
+        ScrollView {
+            anchors.fill: parent
+            clip: true
             
-            // Header row with text and buttons
-            Row {
+            Column {
+                id: mainColumn
+                spacing: 10  // Reduced spacing for tighter layout
                 width: parent.width
-                height: 35
-                spacing: 10  // Add spacing between elements
                 
-                // Header text
-                Text {
-                    id: headerText
-                    text: "The .set files in this directory will be preprocessed."
-                    font.pixelSize: 14
-                    color: "#333"
-                    anchors.verticalCenter: parent.verticalCenter
+                Component.onCompleted: {
+                    console.log("Fixed ScrollView - Column height:", height)
+                    console.log("Fixed ScrollView - Available width:", width)
                 }
-                
-                // Spacer to push buttons to the right
-                Item {
-                    width: addButton.visible ? 
-                        (parent.width - headerText.width - addButton.width - runButton.width - 100 - parent.spacing * 3) :
-                        (parent.width - headerText.width - runButton.width - 100 - parent.spacing * 2)
-                    height: 1
-                }
-                
-                // Add button with dropdown menu
-                Rectangle {
-                    id: addButton
-                    width: 80
-                    height: 35
-                    visible: preprocessingPageRoot.editModeEnabled
-                    property bool menuOpen: false
-                    
-                    color: mouseArea.containsMouse ? "#f5f5f5" : "transparent"
-                    radius: 5
-                    border.color: "#2196f3"
-                    border.width: 1
-                    
-                    Text {
-                        text: "Add ▼"
-                        color: "#2196f3"
-                        font.pixelSize: 12
-                        anchors.centerIn: parent
-                    }
-                    
-                    MouseArea {
-                        id: mouseArea
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        onClicked: {
-                            addButton.menuOpen = !addButton.menuOpen
-                        }
-                    }
-                    
-                    // Add dropdown menu (styled like main.qml dropdowns)
-                    Rectangle {
-                        id: addMenuPopup
-                        x: 0
-                        y: addButton.height
-                        width: 150
-                        height: 80
-                        color: "white"
-                        border.color: "#ccc"
-                        border.width: 1
-                        radius: 4
-                        visible: addButton.menuOpen
-                        z: 10000
-                        
-                        // Drop shadow effect
-                        Rectangle {
-                            anchors.fill: parent
-                            anchors.topMargin: 2
-                            anchors.leftMargin: 2
-                            color: "#00000020"
-                            radius: 4
-                            z: -1
-                        }
-                        
-                        Column {
-                            anchors.fill: parent
-                            anchors.margins: 2
-                            
-                            // Range Slider menu item
-                            Rectangle {
-                                width: parent.width
-                                height: 35
-                                color: rangeSliderArea.containsMouse ? "#f8f9fa" : "white"
-                                
-                                Text {
-                                    text: "Range Slider"
-                                    anchors.left: parent.left
-                                    anchors.leftMargin: 10
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    font.pixelSize: 12
-                                    color: "#333"
-                                }
-                                
-                                MouseArea {
-                                    id: rangeSliderArea
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    onClicked: {
-                                        console.log("Range Slider selected")
-                                        addButton.menuOpen = false
-                                    }
-                                }
-                            }
-                            
-                            // Dropdown Menu item
-                            Rectangle {
-                                width: parent.width
-                                height: 35
-                                color: dropdownMenuArea.containsMouse ? "#f8f9fa" : "white"
-                                
-                                Text {
-                                    text: "Dropdown Menu"
-                                    anchors.left: parent.left
-                                    anchors.leftMargin: 10
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    font.pixelSize: 12
-                                    color: "#333"
-                                }
-                                
-                                MouseArea {
-                                    id: dropdownMenuArea
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    onClicked: {
-                                        console.log("Dropdown Menu selected")
-                                        addButton.menuOpen = false
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                // Run & Save button
-                Button {
-                    id: runButton
-                    text: preprocessingPageRoot.isProcessing ? "Processing..." : "Preprocess and Run ICA"
-                    width: 200
-                    height: 35
-                    enabled: !preprocessingPageRoot.isProcessing  // Disable during processing
-
-                    background: Rectangle {
-                        color: parent.enabled ? 
-                            (parent.pressed ? "#1976d2" : (parent.hovered ? "#2196f3" : "#2196f3")) :
-                            "#888888"  // Gray when disabled
-                        radius: 5
-                        border.color: parent.enabled ? "#1976d2" : "#666666"
-                        border.width: 1
-                    }
-
-                    contentItem: Text {
-                        text: parent.text
-                        color: parent.enabled ? "white" : "#cccccc"
-                        font.pixelSize: 12
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
-
-                    onClicked: {
-                        // Set processing state to true
-                        preprocessingPageRoot.isProcessing = true
-                        
-                        var prestimValue = prestimPoststimSlider.firstValue
-                        var poststimValue = prestimPoststimSlider.secondValue
-                        var trialfunValue = trialfunDropdown.selectedItems.length > 0 ? trialfunDropdown.selectedItems[0] : ""
-                        var eventtypeValue = eventtypeDropdown.selectedItems.length > 0 ? eventtypeDropdown.selectedItems[0] : ""
-                        var selectedChannels = selectedChannels
-                        console.log("Running preprocessing and ICA:")
-                        console.log("cfg.trialdef.prestim =", prestimValue.toFixed(1))
-                        console.log("cfg.trialdef.poststim =", poststimValue.toFixed(1))
-                        console.log("cfg.trialfun =", trialfunValue)
-                        console.log("cfg.trialdef.eventtype =", eventtypeValue)
-                        console.log("selected channels =", selectedChannels)
-                        console.log("cfg.trialdef.eventvalue =", eventvalueDropdown.selectedItems)
-                        console.log("cfg.demean =", "yes")
-                        console.log("cfg.baselinewindow =", "[" + baselineSlider.firstValue + " " + baselineSlider.secondValue + "]")
-                        console.log("cfg.dftfilter =", "yes")
-                        console.log("cfg.dftfreq =", "[" + dftfreqSlider.firstValue + " " + dftfreqSlider.secondValue + "]")
-                        console.log("data path =", preprocessingPageRoot.currentFolder)
-                        
-                        // Call the new run and save method that includes MATLAB execution with ICA
-                        matlabExecutor.runAndSaveConfiguration(prestimValue, poststimValue, trialfunValue, eventtypeValue, selectedChannels, eventvalueDropdown.selectedItems, true, baselineSlider.firstValue, baselineSlider.secondValue, true, dftfreqSlider.firstValue, dftfreqSlider.secondValue, preprocessingPageRoot.currentFolder)
-                    }
-                }
-            }
-            
-            // Scrollable content area
-            ScrollView {
-                width: parent.width  
-                height: 700  // Fixed height that's reasonable for the content
-                clip: true
-                
-                Column {
-                    id: mainColumn
-                    spacing: 15  // Reduced spacing for better space usage
-                    width: parent.width
-                    
-                    Component.onCompleted: {
-                        console.log("Fixed ScrollView - Column height:", height)
-                        console.log("Fixed ScrollView - Available width:", width)
-                    }
 
             // FieldTrip Path Selection
             Column {
@@ -864,15 +859,9 @@ Item {
                 anchors.centerIn: parent
                 visible: preprocessingPageRoot.saveMessage !== ""
             }
-                }
+        }
                 
-                // Extra spacing at the bottom for better scrolling
-                Item {
-                    width: parent.width
-                    height: 300  // Add 300px of extra space at the bottom
-                }
             }  // End Column (mainColumn)
         }  // End ScrollView
-        }  // End Column (wrapper)
     }  // End Rectangle
 }  // End Item (preprocessingPageRoot)
