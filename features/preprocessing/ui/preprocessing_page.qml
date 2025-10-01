@@ -65,122 +65,8 @@ Item {
         
         // Spacer to push buttons to the right
         Item {
-            width: addButton.visible ? 
-                (parent.width - 400 - addButton.width - runButton.width - parent.spacing * 3) :
-                (parent.width - 400 - runButton.width - parent.spacing * 2)
+            width: parent.width - 400 - runButton.width - parent.spacing * 2
             height: 1
-        }
-        
-        // Add button with dropdown menu
-        Rectangle {
-            id: addButton
-            width: 80
-            height: 35
-            visible: preprocessingPageRoot.editModeEnabled
-            property bool menuOpen: false
-            
-            color: mouseArea.containsMouse ? "#f5f5f5" : "transparent"
-            radius: 5
-            border.color: "#2196f3"
-            border.width: 1
-            
-            Text {
-                text: "Add ▼"
-                color: "#2196f3"
-                font.pixelSize: 12
-                anchors.centerIn: parent
-            }
-            
-            MouseArea {
-                id: mouseArea
-                anchors.fill: parent
-                hoverEnabled: true
-                onClicked: {
-                    addButton.menuOpen = !addButton.menuOpen
-                }
-            }
-            
-            // Add dropdown menu (styled like main.qml dropdowns)
-            Rectangle {
-                id: addMenuPopup
-                x: 0
-                y: addButton.height
-                width: 150
-                height: 80
-                color: "white"
-                border.color: "#ccc"
-                border.width: 1
-                radius: 4
-                visible: addButton.menuOpen
-                z: 10000
-                
-                // Drop shadow effect
-                Rectangle {
-                    anchors.fill: parent
-                    anchors.topMargin: 2
-                    anchors.leftMargin: 2
-                    color: "#00000020"
-                    radius: 4
-                    z: -1
-                }
-                
-                Column {
-                    anchors.fill: parent
-                    anchors.margins: 2
-                    
-                    // Range Slider menu item
-                    Rectangle {
-                        width: parent.width
-                        height: 35
-                        color: rangeSliderArea.containsMouse ? "#f8f9fa" : "white"
-                        
-                        Text {
-                            text: "Range Slider"
-                            anchors.left: parent.left
-                            anchors.leftMargin: 10
-                            anchors.verticalCenter: parent.verticalCenter
-                            font.pixelSize: 12
-                            color: "#333"
-                        }
-                        
-                        MouseArea {
-                            id: rangeSliderArea
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            onClicked: {
-                                console.log("Range Slider selected")
-                                addButton.menuOpen = false
-                            }
-                        }
-                    }
-                    
-                    // Dropdown Menu item
-                    Rectangle {
-                        width: parent.width
-                        height: 35
-                        color: dropdownMenuArea.containsMouse ? "#f8f9fa" : "white"
-                        
-                        Text {
-                            text: "Dropdown Menu"
-                            anchors.left: parent.left
-                            anchors.leftMargin: 10
-                            anchors.verticalCenter: parent.verticalCenter
-                            font.pixelSize: 12
-                            color: "#333"
-                        }
-                        
-                        MouseArea {
-                            id: dropdownMenuArea
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            onClicked: {
-                                console.log("Dropdown Menu selected")
-                                addButton.menuOpen = false
-                            }
-                        }
-                    }
-                }
-            }
         }
         
         // Run & Save button
@@ -216,13 +102,13 @@ Item {
                 var poststimValue = prestimPoststimSlider.secondValue
                 var trialfunValue = trialfunDropdown.selectedItems.length > 0 ? trialfunDropdown.selectedItems[0] : ""
                 var eventtypeValue = eventtypeDropdown.selectedItems.length > 0 ? eventtypeDropdown.selectedItems[0] : ""
-                var selectedChannels = selectedChannels
+                var selectedChannelsList = preprocessingPageRoot.selectedChannels
                 console.log("Running preprocessing and ICA:")
                 console.log("cfg.trialdef.prestim =", prestimValue.toFixed(1))
                 console.log("cfg.trialdef.poststim =", poststimValue.toFixed(1))
                 console.log("cfg.trialfun =", trialfunValue)
                 console.log("cfg.trialdef.eventtype =", eventtypeValue)
-                console.log("selected channels =", selectedChannels)
+                console.log("selected channels =", selectedChannelsList)
                 console.log("cfg.trialdef.eventvalue =", eventvalueDropdown.selectedItems)
                 console.log("cfg.demean =", "yes")
                 console.log("cfg.baselinewindow =", "[" + baselineSlider.firstValue + " " + baselineSlider.secondValue + "]")
@@ -231,7 +117,7 @@ Item {
                 console.log("data path =", preprocessingPageRoot.currentFolder)
                 
                 // Call the new run and save method that includes MATLAB execution with ICA
-                matlabExecutor.runAndSaveConfiguration(prestimValue, poststimValue, trialfunValue, eventtypeValue, selectedChannels, eventvalueDropdown.selectedItems, true, baselineSlider.firstValue, baselineSlider.secondValue, true, dftfreqSlider.firstValue, dftfreqSlider.secondValue, preprocessingPageRoot.currentFolder)
+                matlabExecutor.runAndSaveConfiguration(prestimValue, poststimValue, trialfunValue, eventtypeValue, selectedChannelsList, eventvalueDropdown.selectedItems, true, baselineSlider.firstValue, baselineSlider.secondValue, true, dftfreqSlider.firstValue, dftfreqSlider.secondValue, preprocessingPageRoot.currentFolder)
             }
         }
     }
