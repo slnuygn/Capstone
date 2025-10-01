@@ -84,7 +84,7 @@ Rectangle {
         Rectangle {
             width: editMenuText.width + 20
             height: 25
-            color: editMenuArea.containsMouse ? "#d1d3d4" : "transparent"
+            color: editMenuArea.containsMouse || topMenuComponent.editMenuOpen ? "#d1d3d4" : "transparent"
             radius: 3
 
             Text {
@@ -108,6 +108,98 @@ Rectangle {
                     }
                     console.log("Edit menu new state:", topMenuComponent.editMenuOpen)
                     topMenuComponent.menuStateChanged(topMenuComponent.fileMenuOpen, topMenuComponent.matlabSubmenuOpen, topMenuComponent.editMenuOpen)
+                }
+            }
+
+            // Edit Menu Dropdown
+            Rectangle {
+                id: editMenuDropdown
+                x: 0
+                y: parent.height + 2
+                width: 180
+                height: 50
+                color: "white"
+                border.color: "#d0d0d0"
+                border.width: 1
+                radius: 6
+                visible: topMenuComponent.editMenuOpen
+                z: 10000
+
+                // Simple shadow effect
+                Rectangle {
+                    anchors.fill: parent
+                    anchors.margins: -2
+                    color: "transparent"
+                    border.color: "#00000015"
+                    border.width: 2
+                    radius: 7
+                    z: -1
+                }
+
+                Rectangle {
+                    anchors.fill: parent
+                    anchors.margins: -4
+                    color: "transparent"
+                    border.color: "#00000010"
+                    border.width: 2
+                    radius: 8
+                    z: -2
+                }
+
+                // Edit Mode Checkbox Item
+                Rectangle {
+                    width: parent.width
+                    height: 40
+                    color: editModeArea.containsMouse ? "#e8e8e8" : "transparent"
+                    radius: 4
+
+                    Row {
+                        anchors.fill: parent
+                        anchors.leftMargin: 12
+                        anchors.rightMargin: 12
+                        spacing: 8
+
+                        // Checkbox
+                        Rectangle {
+                            width: 16
+                            height: 16
+                            anchors.verticalCenter: parent.verticalCenter
+                            color: topMenuComponent.editModeChecked ? "#2196f3" : "white"
+                            border.color: "#666"
+                            border.width: 1
+                            radius: 2
+
+                            Text {
+                                text: topMenuComponent.editModeChecked ? "✓" : ""
+                                anchors.centerIn: parent
+                                font.pixelSize: 10
+                                color: "white"
+                                font.bold: true
+                            }
+                        }
+
+                        Text {
+                            text: "Edit Mode"
+                            anchors.verticalCenter: parent.verticalCenter
+                            font.pixelSize: 13
+                            color: editModeArea.containsMouse ? "#1a1a1a" : "#333"
+                            font.weight: editModeArea.containsMouse ? Font.Medium : Font.Normal
+                        }
+                    }
+
+                    MouseArea {
+                        id: editModeArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            topMenuComponent.editModeChecked = !topMenuComponent.editModeChecked
+                            console.log("Edit mode toggled:", topMenuComponent.editModeChecked)
+                            topMenuComponent.editModeToggled(topMenuComponent.editModeChecked)
+                            topMenuComponent.editMenuOpen = false
+                            topMenuComponent.menuStateChanged(topMenuComponent.fileMenuOpen, topMenuComponent.matlabSubmenuOpen, topMenuComponent.editMenuOpen)
+                        }
+                    }
                 }
             }
         }
