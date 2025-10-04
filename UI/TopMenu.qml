@@ -22,6 +22,7 @@ Rectangle {
     signal createFunctionRequested()
     signal createScriptRequested()
     signal editModeToggled(bool checked)
+    signal addDropdownRequested()
     signal menuStateChanged(bool fileMenuOpen, bool matlabSubmenuOpen, bool editMenuOpen)
     
     // Function to close menus (can be called from parent)
@@ -685,6 +686,7 @@ Rectangle {
                     onClicked: {
                         console.log("Add submenu - Dropdown Menu selected")
                         topMenuComponent.closeMenus()
+                        topMenuComponent.addDropdownRequested()
                     }
                 }
             }

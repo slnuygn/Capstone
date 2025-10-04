@@ -147,6 +147,12 @@ ApplicationWindow {
                 preprocessingPageLoader.item.setEditMode(checked)
             }
         }
+
+        onAddDropdownRequested: {
+            if (preprocessingPageLoader.item && preprocessingPageLoader.item.addDropdownTemplate) {
+                preprocessingPageLoader.item.addDropdownTemplate()
+            }
+        }
     }
 
     // MouseArea to close menus when clicking outside

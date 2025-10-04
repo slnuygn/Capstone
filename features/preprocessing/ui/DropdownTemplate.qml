@@ -4,7 +4,7 @@ import QtQuick.Controls 2.15
 Item {
     id: dropdownTemplate
     width: parent ? parent.width * 0.75 : 150
-    height: 60
+    height: Math.max(60, contentColumn ? contentColumn.implicitHeight : 60)
     z: 1000  // Base z-index
 
     // Properties for customization
@@ -20,7 +20,8 @@ Item {
     property var allItems: [] // For multi-select
     property bool addCheckboxChecked: false // For add item checkbox state
 
-    property string dropdownState: "default"  // "default" or "edit"
+    property string dropdownState: "default"  // "default", "edit", or "add"
+    property string matlabPropertyDraft: matlabProperty
 
     // Dynamic z-index management
     property int baseZ: 1000
@@ -39,6 +40,25 @@ Item {
     signal deleteItem(string itemToDelete)
     signal multiSelectionChanged(var selected)
     signal deleteRequested()
+    signal propertySaveRequested(string propertyValue)
+
+    onMatlabPropertyChanged: {
+        if (dropdownState !== "add") {
+            matlabPropertyDraft = matlabProperty
+        }
+    }
+
+    onDropdownStateChanged: {
+        if (dropdownState === "add") {
+            matlabPropertyDraft = matlabProperty
+            if (propertyInput) {
+                Qt.callLater(function() {
+                    propertyInput.forceActiveFocus()
+                    propertyInput.selectAll()
+                })
+            }
+        }
+    }
 
     // Function to get display text for multi-select
     function getMultiSelectText() {
@@ -107,21 +127,89 @@ Item {
     }
 
     Column {
+        id: contentColumn
         width: parent.width
         spacing: 5
 
-        Text {
-            text: matlabProperty + " = '" + (isMultiSelect ? "{" + getMultiSelectFormattedText() + "}" : (comboBox.currentText || "none")) + "'"
-            font.pixelSize: 12
-            color: "#666"
-            wrapMode: Text.Wrap
+        Item {
             width: parent.width
+            implicitHeight: propertyDisplay.visible ? propertyDisplay.implicitHeight : propertyEditColumn.implicitHeight
 
-            // Double-click to enter edit mode
-            MouseArea {
-                anchors.fill: parent
-                onDoubleClicked: {
-                    dropdownState = "edit"
+            Text {
+                id: propertyDisplay
+                visible: dropdownState !== "add"
+                text: matlabProperty + " = '" + (isMultiSelect ? "{" + getMultiSelectFormattedText() + "}" : (comboBox.currentText || "none")) + "'"
+                font.pixelSize: 12
+                color: "#666"
+                wrapMode: Text.Wrap
+                width: parent.width
+
+                MouseArea {
+                    anchors.fill: parent
+                    onDoubleClicked: {
+                        dropdownState = "edit"
+                    }
+                }
+            }
+
+            Row {
+                id: propertyEditColumn
+                visible: dropdownState === "add"
+                width: parent.width
+                spacing: 8
+
+                Rectangle {
+                    width: parent.width * 0.33
+                    height: 32
+                    color: "#f5f5f5"
+                    border.color: "#ccc"
+                    border.width: 1
+                    radius: 3
+
+                    TextInput {
+                        id: propertyInput
+                        anchors.fill: parent
+                        anchors.margins: 6
+                        text: dropdownTemplate.matlabPropertyDraft
+                        font.pixelSize: 12
+                        color: "#333"
+                        selectByMouse: true
+                        verticalAlignment: TextInput.AlignVCenter
+                        topPadding: 0
+                        bottomPadding: 0
+                        onTextChanged: {
+                            if (dropdownTemplate.matlabPropertyDraft !== text) {
+                                dropdownTemplate.matlabPropertyDraft = text
+                                dropdownTemplate.matlabProperty = text
+                            }
+                        }
+                    }
+
+                    Text {
+                        anchors.verticalCenter: propertyInput.verticalCenter
+                        anchors.left: propertyInput.left
+                        anchors.right: propertyInput.right
+                        anchors.leftMargin: 6
+                        anchors.rightMargin: 6
+                        text: "cfg."
+                        font.pixelSize: 12
+                        color: "#999"
+                        elide: Text.ElideRight
+                        verticalAlignment: Text.AlignVCenter
+                        horizontalAlignment: Text.AlignLeft
+                        visible: propertyInput.text.length === 0 && !propertyInput.activeFocus
+                    }
+                }
+
+                Text {
+                    id: valuePreview
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "= '" + (isMultiSelect ? "{" + getMultiSelectFormattedText() + "}" : (comboBox.currentText || "none")) + "'"
+                    font.pixelSize: 12
+                    color: "#666"
+                    wrapMode: Text.NoWrap
+                    elide: Text.ElideRight
+                    width: parent.width - propertyEditColumn.spacing - (parent.width * 0.33)
                 }
             }
         }
@@ -205,7 +293,7 @@ Item {
                 visible: false
                 width: parent.width
                 height: {
-                    var addVisible = hasAddFeature && dropdownTemplate.dropdownState === "edit"
+                    var addVisible = hasAddFeature && (dropdownTemplate.dropdownState === "edit" || dropdownTemplate.dropdownState === "add")
                     var itemCount = comboBox.model.length + (addVisible ? 1 : 0)
                     var contentHeight = itemCount * 25 + Math.max(0, itemCount - 1) * 2
                     var maxHeight = 8 * 25 + 7 * 2 + 10  // Max 8 options visible
@@ -287,9 +375,9 @@ Item {
                             }
                         }
 
-                        // Add new item option (only when hasAddFeature is true and in edit mode)
+                        // Add new item option (only when hasAddFeature is true and in edit/add mode)
                         Rectangle {
-                            visible: hasAddFeature && dropdownState === "edit"
+                            visible: hasAddFeature && (dropdownState === "edit" || dropdownState === "add")
                             width: parent.width
                             height: singleAddInput.visible ? 30 : 25
                             color: "transparent"
@@ -432,7 +520,7 @@ Item {
             visible: false
             width: parent.width
             height: {
-                var addVisible = hasAddFeature && dropdownTemplate.dropdownState === "edit"
+                var addVisible = hasAddFeature && (dropdownTemplate.dropdownState === "edit" || dropdownTemplate.dropdownState === "add")
                 var itemCount = (maxSelections !== 1 ? 1 : 0) + allItems.length + (addVisible ? 1 : 0)
                 var contentHeight = itemCount * 25 + Math.max(0, itemCount - 1) * 2
                 var maxHeight = 9 * 25 + 8 * 2 + 10  // Max 9 options visible
@@ -605,9 +693,9 @@ Item {
                         }
                     }
 
-                    // Add new item option (only when hasAddFeature is true and in edit mode)
+                        // Add new item option (only when hasAddFeature is true and in edit/add mode)
                     Rectangle {
-                        visible: hasAddFeature && dropdownState === "edit"
+                        visible: hasAddFeature && (dropdownState === "edit" || dropdownState === "add")
                         width: parent.width
                         height: addInput.visible ? 30 : 25
                         color: "transparent"
@@ -737,7 +825,35 @@ Item {
         x: (isMultiSelect ? multiSelectDisplay : singleSelectRow).x + (isMultiSelect ? multiSelectDisplay : singleSelectRow).width + 15
         y: (isMultiSelect ? multiSelectDisplay : singleSelectRow).y + (isMultiSelect ? multiSelectDisplay : singleSelectRow).height / 2 - height / 2
         spacing: 5
-        visible: dropdownState === "edit"
+    visible: dropdownState === "edit" || dropdownState === "add"
+
+        // Save icon
+        Rectangle {
+            width: 25
+            height: 25
+            color: "transparent"
+            border.color: "#ccc"
+            border.width: 1
+            radius: 3
+            visible: dropdownState === "add"
+
+            Text {
+                anchors.centerIn: parent
+                text: "💾"
+                font.pixelSize: 12
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: {
+                    dropdownTemplate.matlabPropertyDraft = propertyInput.text
+                    dropdownTemplate.matlabProperty = dropdownTemplate.matlabPropertyDraft
+                    propertySaveRequested(dropdownTemplate.matlabProperty)
+                    propertyInput.focus = false
+                    dropdownTemplate.dropdownState = "default"
+                }
+            }
+        }
 
         // Trash icon
         Rectangle {

@@ -3,6 +3,7 @@ import sys
 import subprocess
 import re
 import threading
+import json
 from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, QThread
 import scipy.io
 
@@ -84,6 +85,198 @@ class MatlabExecutor(QObject):
         # Load the current data directory from the MATLAB script at startup
         self._current_data_dir = self.getCurrentDataDirectory()
         self._worker_thread = None  # For background MATLAB execution
+        self._project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self._preprocessing_qml_path = os.path.join(
+            self._project_root,
+            "features",
+            "preprocessing",
+            "ui",
+            "preprocessing_page.qml",
+        )
+
+    def _update_dropdown_state_in_qml(self, dropdown_id: str, new_state: str) -> bool:
+        """Update the dropdownState property for a specific dropdown in the QML file."""
+        try:
+            if not os.path.exists(self._preprocessing_qml_path):
+                print(f"QML file not found when updating state: {self._preprocessing_qml_path}")
+                return False
+
+            with open(self._preprocessing_qml_path, 'r', encoding='utf-8') as file:
+                content = file.read()
+
+            # Match the specific dropdown block and replace its dropdownState value
+            pattern = rf'(id\s*:\s*{re.escape(dropdown_id)}[\s\S]*?dropdownState\s*:\s*")(?:[^"]+)(")'
+            new_content, count = re.subn(pattern, rf'\1{new_state}\2', content, count=1)
+
+            if count == 0:
+                print(f"Could not update dropdownState for {dropdown_id} in QML file")
+                return False
+
+            with open(self._preprocessing_qml_path, 'w', encoding='utf-8') as file:
+                file.write(new_content)
+
+            return True
+
+        except Exception as e:
+            print(f"Error updating dropdown state for {dropdown_id}: {str(e)}")
+            return False
+
+    @pyqtSlot(str, str, result=bool)
+    def setDropdownState(self, dropdown_id: str, new_state: str) -> bool:
+        """Public slot for QML to persist dropdown state changes."""
+        return self._update_dropdown_state_in_qml(dropdown_id, new_state)
+
+    # ------------------------------------------------------------------
+    # Custom dropdown persistence helpers
+    # ------------------------------------------------------------------
+
+    def _escape_qml_string(self, value: str) -> str:
+        return value.replace('\\', '\\\\').replace('"', '\\"') if value else ""
+
+    def _format_qml_list(self, items) -> str:
+        if not items:
+            return "[]"
+        escaped = [f'"{self._escape_qml_string(str(item))}"' for item in items if str(item)]
+        return "[" + ", ".join(escaped) + "]"
+
+    def _coerce_to_list(self, payload) -> list:
+        if isinstance(payload, (list, tuple)):
+            return [str(item) for item in payload if str(item)]
+
+        if isinstance(payload, str):
+            stripped = payload.strip()
+            if not stripped:
+                return []
+
+            try:
+                parsed = json.loads(stripped)
+                if isinstance(parsed, list):
+                    return [str(item) for item in parsed if str(item)]
+            except json.JSONDecodeError:
+                items = [item.strip() for item in stripped.split(',') if item.strip()]
+                if items:
+                    return items
+
+            return [stripped]
+
+        return []
+
+    def _get_custom_dropdown_block_positions(self, content: str):
+        pattern = re.compile(r'(\n\s*DropdownTemplate\s*\{\s*id\s*:\s*(customDropdown\d+)[\s\S]*?\n\s*\})')
+        positions = {}
+        for match in pattern.finditer(content):
+            block_id = match.group(2)
+            positions[block_id] = (match.start(1), match.end(1))
+        return positions
+
+    def _locate_custom_container_bounds(self, content: str):
+        marker = "id: customDropdownContainer"
+        marker_index = content.find(marker)
+        if marker_index == -1:
+            return -1, -1
+
+        open_brace_index = content.rfind('{', 0, marker_index)
+        if open_brace_index == -1:
+            return -1, -1
+
+        depth = 0
+        for idx in range(open_brace_index, len(content)):
+            char = content[idx]
+            if char == '{':
+                depth += 1
+            elif char == '}':
+                depth -= 1
+                if depth == 0:
+                    return open_brace_index, idx
+        return open_brace_index, -1
+
+    def _next_custom_dropdown_index(self, existing_ids) -> int:
+        max_index = 0
+        for dropdown_id in existing_ids:
+            try:
+                suffix = int(re.findall(r'(\d+)$', dropdown_id)[0])
+                max_index = max(max_index, suffix)
+            except (IndexError, ValueError):
+                continue
+        return max_index + 1 if max_index >= 0 else 1
+
+    def _build_custom_dropdown_snippet(
+        self,
+        dropdown_id: str,
+        label: str,
+        matlab_property: str,
+        is_multi_select: bool,
+        max_selections: int,
+        all_items,
+        selected_items,
+    ) -> str:
+        label = label.strip() or dropdown_id
+        matlab_property = matlab_property.strip()
+        if matlab_property and not matlab_property.startswith("cfg."):
+            matlab_property = f"cfg.{matlab_property}"
+
+        all_items_list = self._coerce_to_list(all_items)
+        selected_items_list = self._coerce_to_list(selected_items)
+
+        qml_all_items = self._format_qml_list(all_items_list)
+        qml_selected_items = self._format_qml_list(selected_items_list)
+        qml_model = "[]" if is_multi_select else qml_all_items
+
+        escaped_label = self._escape_qml_string(label)
+        escaped_property = self._escape_qml_string(matlab_property)
+
+        lines = [
+            "",
+            "            DropdownTemplate {",
+            f"                id: {dropdown_id}",
+            f"                property string persistentId: \"{dropdown_id}\"",
+            f"                property string customLabel: \"{escaped_label}\"",
+            "                property bool persistenceConnected: false",
+            f"                label: \"{escaped_label}\"",
+            f"                matlabProperty: \"{escaped_property}\"",
+            f"                matlabPropertyDraft: \"{escaped_property}\"",
+            "                hasAddFeature: true",
+            f"                isMultiSelect: {'true' if is_multi_select else 'false'}",
+            f"                maxSelections: {max_selections}",
+            f"                model: {qml_model}",
+            f"                allItems: {qml_all_items}",
+            f"                selectedItems: {qml_selected_items}",
+            '                addPlaceholder: "Add option..."',
+            '                dropdownState: "default"',
+            '                anchors.left: parent.left',
+            "            }\n",
+        ]
+
+        return "\n".join(lines)
+
+    def _insert_custom_dropdown_snippet(self, content: str, snippet: str):
+        start, end = self._locate_custom_container_bounds(content)
+        if start == -1 or end == -1:
+            print("Custom dropdown container not found in QML when inserting snippet.")
+            return content, False
+
+        insertion_point = end
+        updated_content = content[:insertion_point] + snippet + content[insertion_point:]
+        return updated_content, True
+
+    def _replace_custom_dropdown_block(self, content: str, dropdown_id: str, snippet: str):
+        positions = self._get_custom_dropdown_block_positions(content)
+        if dropdown_id not in positions:
+            return content, False
+
+        start, end = positions[dropdown_id]
+        snippet_to_use = snippet if snippet.startswith("\n") else "\n" + snippet
+        updated_content = content[:start] + snippet_to_use + content[end:]
+        return updated_content, True
+
+    def _remove_custom_dropdown_block(self, content: str, dropdown_id: str):
+        positions = self._get_custom_dropdown_block_positions(content)
+        if dropdown_id not in positions:
+            return content, False
+
+        start, end = positions[dropdown_id]
+        updated_content = content[:start] + content[end:]
+        return updated_content, True
     
     @pyqtSlot(result=float)
     def getCurrentPrestim(self):
@@ -860,81 +1053,87 @@ class MatlabExecutor(QObject):
     @pyqtSlot(str)
     def addCustomTrialfunOption(self, new_option):
         """Add a new custom trialfun option to the QML file directly"""
+        success = False
         try:
-            qml_file_path = "../features/preprocessing/ui/preprocessing_page.qml"
-            
+            qml_file_path = self._preprocessing_qml_path
+
             # Read the current QML file
             with open(qml_file_path, 'r', encoding='utf-8') as file:
                 content = file.read()
-            
+
             # Find the customModel property line
             pattern = r'property var customModel: (\[.*?\])'
             match = re.search(pattern, content)
-            
+
             if match:
                 current_array_str = match.group(1)
-                
+
                 # Parse the current array (simple parsing for quoted strings)
                 import ast
                 try:
                     current_array = ast.literal_eval(current_array_str)
-                except:
+                except Exception:
                     # Fallback parsing if ast fails
                     current_array = ["ft_trialfun_general", "alternative"]
-                
+
                 # Add the new option if it's not already there
                 if new_option not in current_array:
                     current_array.append(new_option)
-                    
+
                     # Create the new array string
                     new_array_str = '["' + '", "'.join(current_array) + '"]'
-                    
+
                     # Replace in the content
                     new_content = re.sub(pattern, f'property var customModel: {new_array_str}', content)
-                    
+
                     # Write back to file
                     with open(qml_file_path, 'w', encoding='utf-8') as file:
                         file.write(new_content)
-                    
+
                     print(f"Added '{new_option}' to QML customModel")
-                    return True
-            
-            return False
-            
+                    success = True
+
         except Exception as e:
             print(f"Error adding custom trialfun option to QML: {str(e)}")
-            return False
+        finally:
+            self._update_dropdown_state_in_qml("trialfunDropdown", "default")
+
+        return success
     
     @pyqtSlot(str, int)
     def saveTrialfunSelection(self, selected_option, selected_index):
         """Save the selected trialfun option and index to the QML file"""
+        success = False
         try:
-            qml_file_path = "../features/preprocessing/ui/preprocessing_page.qml"
-            
+            qml_file_path = self._preprocessing_qml_path
+
             # Read the current QML file
             with open(qml_file_path, 'r', encoding='utf-8') as file:
                 content = file.read()
-            
+
             # Update the currentIndex in the QML file
             index_pattern = r'currentIndex: \d+'
             new_content = re.sub(index_pattern, f'currentIndex: {selected_index}', content)
-            
+
             # Write back to file
             with open(qml_file_path, 'w', encoding='utf-8') as file:
                 file.write(new_content)
-            
+
             print(f"Saved trialfun selection: '{selected_option}' at index {selected_index}")
-            return True
-            
+            success = True
+
         except Exception as e:
             print(f"Error saving trialfun selection to QML: {str(e)}")
-            return False
+        finally:
+            self._update_dropdown_state_in_qml("trialfunDropdown", "default")
+
+        return success
     
     @pyqtSlot(str)
     def addCustomEventtypeOption(self, new_option):
         """Add a new custom eventtype option to the QML file directly"""
         try:
-            qml_file_path = "../features/preprocessing/ui/preprocessing_page.qml"
+            qml_file_path = self._preprocessing_qml_path
             
             # Read the current QML file
             with open(qml_file_path, 'r', encoding='utf-8') as file:
@@ -982,7 +1181,7 @@ class MatlabExecutor(QObject):
     def saveEventtypeSelection(self, selected_option, selected_index):
         """Save the selected eventtype option and index to the QML file"""
         try:
-            qml_file_path = "../features/preprocessing/ui/preprocessing_page.qml"
+            qml_file_path = self._preprocessing_qml_path
             
             # Read the current QML file
             with open(qml_file_path, 'r', encoding='utf-8') as file:
@@ -1109,57 +1308,59 @@ browse_ICA('{mat_file_path.replace(chr(92), '/')}');
     @pyqtSlot(str)
     def addCustomTrialfunOptionToAllItems(self, new_option):
         """Add a new custom trialfun option to the trialfun dropdown's allItems array"""
+        success = False
         try:
-            qml_file_path = "../features/preprocessing/ui/preprocessing_page.qml"
-            
+            qml_file_path = self._preprocessing_qml_path
+
             # Read the current QML file
             with open(qml_file_path, 'r', encoding='utf-8') as file:
                 content = file.read()
-            
+
             # Find the trialfun allItems array (look for the pattern with ft_trialfun_general)
             pattern = r'allItems: (\["ft_trialfun_general".*?\])'
             match = re.search(pattern, content, re.DOTALL)
-            
+
             if match:
                 current_array_str = match.group(1)
-                
+
                 # Parse the current array
                 import ast
                 try:
                     current_array = ast.literal_eval(current_array_str)
-                except:
+                except Exception:
                     # Fallback: extract items between quotes
                     items = re.findall(r'"([^"]*)"', current_array_str)
                     current_array = items
-                
+
                 # Add the new option if it's not already there
                 if new_option not in current_array:
                     current_array.append(new_option)
-                    
+
                     # Create the new array string
                     new_array_str = '["' + '", "'.join(current_array) + '"]'
-                    
+
                     # Replace in the content
                     new_content = re.sub(pattern, f'allItems: {new_array_str}', content)
-                    
+
                     # Write back to file
                     with open(qml_file_path, 'w', encoding='utf-8') as file:
                         file.write(new_content)
-                    
+
                     print(f"Added '{new_option}' to trialfun allItems")
-                    return True
-            
-            return False
-            
+                    success = True
+
         except Exception as e:
             print(f"Error adding custom trialfun option to allItems: {str(e)}")
-            return False
+        finally:
+            self._update_dropdown_state_in_qml("trialfunDropdown", "default")
+
+        return success
 
     @pyqtSlot(str)
     def addCustomEventtypeOptionToAllItems(self, new_option):
         """Add a new custom eventtype option to the eventtype dropdown's allItems array"""
         try:
-            qml_file_path = "../features/preprocessing/ui/preprocessing_page.qml"
+            qml_file_path = self._preprocessing_qml_path
             
             # Read the current QML file
             with open(qml_file_path, 'r', encoding='utf-8') as file:
@@ -1208,7 +1409,7 @@ browse_ICA('{mat_file_path.replace(chr(92), '/')}');
     def addCustomEventvalueOptionToAllItems(self, new_option):
         """Add a new custom eventvalue option to the eventvalue dropdown's allItems array"""
         try:
-            qml_file_path = "../features/preprocessing/ui/preprocessing_page.qml"
+            qml_file_path = self._preprocessing_qml_path
             
             # Read the current QML file
             with open(qml_file_path, 'r', encoding='utf-8') as file:
@@ -1257,7 +1458,7 @@ browse_ICA('{mat_file_path.replace(chr(92), '/')}');
     def addCustomChannelOptionToAllItems(self, new_option):
         """Add a new custom channel option to the channel dropdown's allItems array"""
         try:
-            qml_file_path = "../features/preprocessing/ui/preprocessing_page.qml"
+            qml_file_path = self._preprocessing_qml_path
             
             # Read the current QML file
             with open(qml_file_path, 'r', encoding='utf-8') as file:
@@ -1302,11 +1503,140 @@ browse_ICA('{mat_file_path.replace(chr(92), '/')}');
             print(f"Error adding custom channel option to allItems: {str(e)}")
             return False
 
+    @pyqtSlot(str, str, bool, int, 'QVariant', 'QVariant', result=str)
+    def saveCustomDropdown(self, label, matlab_property, is_multi_select, max_selections, all_items, selected_items):
+        """Persist a newly created custom dropdown to preprocessing_page.qml and return its assigned id."""
+        try:
+            if not os.path.exists(self._preprocessing_qml_path):
+                print("Preprocessing QML file not found when saving custom dropdown.")
+                return ""
+
+            with open(self._preprocessing_qml_path, 'r', encoding='utf-8') as file:
+                content = file.read()
+
+            positions = self._get_custom_dropdown_block_positions(content)
+
+            normalized_property = (matlab_property or "").strip()
+            if normalized_property and not normalized_property.startswith("cfg."):
+                normalized_property = f"cfg.{normalized_property}"
+            escaped_property = f'"{self._escape_qml_string(normalized_property)}"'
+
+            # If a dropdown with the same matlab property exists, update it instead of creating duplicate
+            for existing_id, (start, end) in positions.items():
+                block_text = content[start:end]
+                if f'matlabProperty: {escaped_property}' in block_text:
+                    snippet = self._build_custom_dropdown_snippet(
+                        existing_id,
+                        label,
+                        normalized_property,
+                        is_multi_select,
+                        max_selections,
+                        all_items,
+                        selected_items,
+                    )
+                    new_content, replaced = self._replace_custom_dropdown_block(content, existing_id, snippet)
+                    if replaced:
+                        with open(self._preprocessing_qml_path, 'w', encoding='utf-8') as file:
+                            file.write(new_content)
+                        print(f"Updated existing custom dropdown '{existing_id}' with new settings.")
+                    return existing_id
+
+            next_index = self._next_custom_dropdown_index(positions.keys()) or 1
+            dropdown_id = f"customDropdown{next_index}"
+
+            snippet = self._build_custom_dropdown_snippet(
+                dropdown_id,
+                label,
+                normalized_property,
+                is_multi_select,
+                max_selections,
+                all_items,
+                selected_items,
+            )
+
+            new_content, inserted = self._insert_custom_dropdown_snippet(content, snippet)
+            if not inserted:
+                return ""
+
+            with open(self._preprocessing_qml_path, 'w', encoding='utf-8') as file:
+                file.write(new_content)
+
+            print(f"Saved new custom dropdown '{dropdown_id}' to QML file.")
+            return dropdown_id
+
+        except Exception as e:
+            print(f"Error saving custom dropdown: {str(e)}")
+            return ""
+
+    @pyqtSlot(str, str, str, bool, int, 'QVariant', 'QVariant', result=bool)
+    def updateCustomDropdown(self, dropdown_id, label, matlab_property, is_multi_select, max_selections, all_items, selected_items):
+        """Update an existing custom dropdown definition in preprocessing_page.qml."""
+        try:
+            if not os.path.exists(self._preprocessing_qml_path):
+                print("Preprocessing QML file not found when updating custom dropdown.")
+                return False
+
+            with open(self._preprocessing_qml_path, 'r', encoding='utf-8') as file:
+                content = file.read()
+
+            snippet = self._build_custom_dropdown_snippet(
+                dropdown_id,
+                label,
+                matlab_property,
+                is_multi_select,
+                max_selections,
+                all_items,
+                selected_items,
+            )
+
+            new_content, replaced = self._replace_custom_dropdown_block(content, dropdown_id, snippet)
+            if not replaced:
+                print(f"Custom dropdown '{dropdown_id}' not found for update; attempting to append new block.")
+                new_content, inserted = self._insert_custom_dropdown_snippet(content, snippet)
+                if not inserted:
+                    return False
+
+            with open(self._preprocessing_qml_path, 'w', encoding='utf-8') as file:
+                file.write(new_content)
+
+            print(f"Updated custom dropdown '{dropdown_id}' in QML file.")
+            return True
+
+        except Exception as e:
+            print(f"Error updating custom dropdown '{dropdown_id}': {str(e)}")
+            return False
+
+    @pyqtSlot(str, result=bool)
+    def removeCustomDropdown(self, dropdown_id):
+        """Remove a custom dropdown definition from preprocessing_page.qml."""
+        try:
+            if not os.path.exists(self._preprocessing_qml_path):
+                print("Preprocessing QML file not found when removing custom dropdown.")
+                return False
+
+            with open(self._preprocessing_qml_path, 'r', encoding='utf-8') as file:
+                content = file.read()
+
+            new_content, removed = self._remove_custom_dropdown_block(content, dropdown_id)
+            if not removed:
+                print(f"Custom dropdown '{dropdown_id}' was not found for removal.")
+                return False
+
+            with open(self._preprocessing_qml_path, 'w', encoding='utf-8') as file:
+                file.write(new_content)
+
+            print(f"Removed custom dropdown '{dropdown_id}' from QML file.")
+            return True
+
+        except Exception as e:
+            print(f"Error removing custom dropdown '{dropdown_id}': {str(e)}")
+            return False
+
     @pyqtSlot(str)
     def deleteCustomTrialfunOptionFromAllItems(self, itemToDelete):
         """Remove a custom trialfun option from the trialfun dropdown's allItems array"""
         try:
-            qml_file_path = "../features/preprocessing/ui/preprocessing_page.qml"
+            qml_file_path = self._preprocessing_qml_path
             
             # Read the current QML file
             with open(qml_file_path, 'r', encoding='utf-8') as file:
@@ -1355,7 +1685,7 @@ browse_ICA('{mat_file_path.replace(chr(92), '/')}');
     def deleteCustomEventtypeOptionFromAllItems(self, itemToDelete):
         """Remove a custom eventtype option from the eventtype dropdown's allItems array"""
         try:
-            qml_file_path = "../features/preprocessing/ui/preprocessing_page.qml"
+            qml_file_path = self._preprocessing_qml_path
             
             # Read the current QML file
             with open(qml_file_path, 'r', encoding='utf-8') as file:
@@ -1404,7 +1734,7 @@ browse_ICA('{mat_file_path.replace(chr(92), '/')}');
     def deleteCustomEventvalueOptionFromAllItems(self, itemToDelete):
         """Remove a custom eventvalue option from the eventvalue dropdown's allItems array"""
         try:
-            qml_file_path = "../features/preprocessing/ui/preprocessing_page.qml"
+            qml_file_path = self._preprocessing_qml_path
             
             # Read the current QML file
             with open(qml_file_path, 'r', encoding='utf-8') as file:
@@ -1453,7 +1783,7 @@ browse_ICA('{mat_file_path.replace(chr(92), '/')}');
     def deleteCustomChannelOptionFromAllItems(self, itemToDelete):
         """Remove a custom channel option from the channel dropdown's allItems array"""
         try:
-            qml_file_path = "../features/preprocessing/ui/preprocessing_page.qml"
+            qml_file_path = self._preprocessing_qml_path
             
             # Read the current QML file
             with open(qml_file_path, 'r', encoding='utf-8') as file:
@@ -1504,7 +1834,7 @@ browse_ICA('{mat_file_path.replace(chr(92), '/')}');
     def updateBaselineSliderValues(self, from_val, to_val, first_val, second_val):
         """Update the baseline slider values in the QML file"""
         try:
-            qml_file_path = "../features/preprocessing/ui/preprocessing_page.qml"
+            qml_file_path = self._preprocessing_qml_path
             
             # Read the current QML file
             with open(qml_file_path, 'r', encoding='utf-8') as file:
@@ -1537,7 +1867,7 @@ browse_ICA('{mat_file_path.replace(chr(92), '/')}');
     def updatePrestimPoststimSliderValues(self, from_val, to_val, first_val, second_val):
         """Update the prestim/poststim slider values in the QML file"""
         try:
-            qml_file_path = "../features/preprocessing/ui/preprocessing_page.qml"
+            qml_file_path = self._preprocessing_qml_path
             
             # Read the current QML file
             with open(qml_file_path, 'r', encoding='utf-8') as file:
@@ -1570,7 +1900,7 @@ browse_ICA('{mat_file_path.replace(chr(92), '/')}');
     def updateDftfreqSliderValues(self, from_val, to_val, first_val, second_val):
         """Update the DFT frequency slider values in the QML file"""
         try:
-            qml_file_path = "../features/preprocessing/ui/preprocessing_page.qml"
+            qml_file_path = self._preprocessing_qml_path
             
             # Read the current QML file
             with open(qml_file_path, 'r', encoding='utf-8') as file:

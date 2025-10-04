@@ -15,6 +15,7 @@ Item {
     property string saveMessage: ""
     property bool isProcessing: false  // Track processing state
     property bool showICABrowser: false  // Track ICA browser visibility
+    property int customDropdownCount: 0
     
     // Function to initialize eventvalues from main.qml
     function setInitialEventvalues(eventvalues) {
@@ -45,6 +46,163 @@ Item {
             dftfreqSlider.firstValue = dftfreq[0]
             dftfreqSlider.secondValue = dftfreq[1]
         }
+    }
+
+    Component {
+        id: customDropdownComponent
+        DropdownTemplate {
+            label: customLabel
+            hasAddFeature: true
+            isMultiSelect: true
+            maxSelections: -1
+            model: []
+            allItems: []
+            selectedItems: []
+            dropdownState: "add"
+            matlabProperty: ""
+            matlabPropertyDraft: ""
+            addPlaceholder: "Add option..."
+
+            property string customLabel: ""
+            property string persistentId: ""
+            property bool persistenceConnected: false
+
+            anchors.left: parent ? parent.left : undefined
+        }
+    }
+
+    function persistCustomDropdown(dropdown) {
+        if (!dropdown)
+            return
+
+        var propertyValue = dropdown.matlabProperty ? dropdown.matlabProperty.trim() : ""
+        if (propertyValue.length === 0)
+            return
+
+        var labelValue = dropdown.label ? dropdown.label : (dropdown.customLabel ? dropdown.customLabel : "Custom Dropdown")
+        labelValue = String(labelValue)
+
+        var allItemsSnapshot = dropdown.allItems && dropdown.allItems.slice ? dropdown.allItems.slice(0) : (dropdown.allItems || [])
+        var selectedItemsSnapshot = dropdown.selectedItems && dropdown.selectedItems.slice ? dropdown.selectedItems.slice(0) : (dropdown.selectedItems || [])
+        var allItemsPayload = JSON.stringify(allItemsSnapshot)
+        var selectedItemsPayload = JSON.stringify(selectedItemsSnapshot)
+
+        if (dropdown.persistentId && dropdown.persistentId.length > 0) {
+            matlabExecutor.updateCustomDropdown(dropdown.persistentId, labelValue, propertyValue, dropdown.isMultiSelect, dropdown.maxSelections, allItemsPayload, selectedItemsPayload)
+        } else {
+            var assignedId = matlabExecutor.saveCustomDropdown(labelValue, propertyValue, dropdown.isMultiSelect, dropdown.maxSelections, allItemsPayload, selectedItemsPayload)
+            if (assignedId && assignedId.length > 0) {
+                dropdown.persistentId = assignedId
+
+                var match = assignedId.match(/(\d+)$/)
+                if (match) {
+                    var numericId = parseInt(match[1])
+                    if (!isNaN(numericId)) {
+                        preprocessingPageRoot.customDropdownCount = Math.max(preprocessingPageRoot.customDropdownCount, numericId)
+                    }
+                }
+            }
+        }
+    }
+
+    function applyEditModeToCustomDropdowns(newState) {
+        for (var i = 0; i < customDropdownContainer.children.length; ++i) {
+            var dropdown = customDropdownContainer.children[i]
+            if (!dropdown || dropdown.dropdownState === "add")
+                continue
+
+            if (dropdown.dropdownState !== newState)
+                dropdown.dropdownState = newState
+        }
+    }
+
+    function attachCustomDropdownSignals(dropdown) {
+        if (!dropdown || dropdown.persistenceConnected === true)
+            return
+
+        dropdown.persistenceConnected = true
+
+        dropdown.propertySaveRequested.connect(function() {
+            persistCustomDropdown(dropdown)
+        })
+
+        dropdown.addItem.connect(function() {
+            persistCustomDropdown(dropdown)
+        })
+
+        dropdown.deleteItem.connect(function() {
+            persistCustomDropdown(dropdown)
+        })
+
+        dropdown.multiSelectionChanged.connect(function() {
+            persistCustomDropdown(dropdown)
+        })
+
+        dropdown.deleteRequested.connect(function() {
+            if (dropdown.persistentId && dropdown.persistentId.length > 0) {
+                matlabExecutor.removeCustomDropdown(dropdown.persistentId)
+            }
+
+            dropdown.destroy()
+
+            var remainingHighest = 0
+            for (var i = 0; i < customDropdownContainer.children.length; ++i) {
+                var child = customDropdownContainer.children[i]
+                if (!child || child === dropdown)
+                    continue
+
+                if (child.persistentId && child.persistentId.length > 0) {
+                    var match = child.persistentId.match(/(\d+)$/)
+                    if (match) {
+                        var value = parseInt(match[1])
+                        if (!isNaN(value)) {
+                            remainingHighest = Math.max(remainingHighest, value)
+                        }
+                    }
+                }
+            }
+            preprocessingPageRoot.customDropdownCount = Math.max(remainingHighest, Math.max(0, customDropdownContainer.children.length - 1))
+        })
+
+        dropdown.dropdownStateChanged.connect(function(newState) {
+            if (newState === "add")
+                return
+
+            if (preprocessingPageRoot.editModeEnabled && newState === "default") {
+                dropdown.dropdownState = "edit"
+            } else if (!preprocessingPageRoot.editModeEnabled && newState === "edit") {
+                dropdown.dropdownState = "default"
+            }
+        })
+
+        if (preprocessingPageRoot.editModeEnabled && dropdown.dropdownState !== "add") {
+            dropdown.dropdownState = "edit"
+        }
+    }
+
+    function addDropdownTemplate() {
+        customDropdownCount += 1
+        var labelText = "Custom Dropdown " + customDropdownCount
+        var dropdown = customDropdownComponent.createObject(customDropdownContainer, {
+            customLabel: labelText,
+            label: labelText,
+            dropdownState: "add",
+            matlabProperty: "",
+            matlabPropertyDraft: "",
+            isMultiSelect: true,
+            maxSelections: -1,
+            persistentId: ""
+        })
+
+        if (!dropdown) {
+            console.error("Failed to create custom dropdown template")
+            customDropdownCount -= 1
+            return
+        }
+
+        attachCustomDropdownSignals(dropdown)
+
+        console.log("Added new dropdown template:", labelText)
     }
     
 
@@ -220,6 +378,7 @@ Item {
         eventtypeDropdown.dropdownState = newState
         eventvalueDropdown.dropdownState = newState
         channelDropdown.dropdownState = newState
+        applyEditModeToCustomDropdowns(newState)
         
         // Update all slider states
         prestimPoststimSlider.sliderState = newState
@@ -463,17 +622,17 @@ Item {
                     console.log("Fixed ScrollView - Available width:", width)
                 }
             
-            // FieldTrip Path Selection
+            // FieldTrip Path Selection (only visible when path is provided)
             Column {
                 width: parent.width
                 spacing: 5
+                visible: preprocessingPageRoot.fieldtripPath !== ""
+                height: visible ? implicitHeight : 0
 
                 Text {
-                    // Keep layout sizing but hide text visually
                     text: "addpath('" + preprocessingPageRoot.fieldtripPath + "')"
                     font.pixelSize: 12
                     color: "#666"
-                    opacity: 0
                 }
             }
 
@@ -484,7 +643,7 @@ Item {
             matlabProperty: "cfg.trialfun"
             isMultiSelect: true
             maxSelections: 1
-            allItems: ["ft_trialfun_general", "alternative"]
+            allItems: ["ft_trialfun_general", "alternative", "asdasdasd"]
             selectedItems: ["ft_trialfun_general"]
             hasAddFeature: true
             addPlaceholder: "Add custom trialfun..."
@@ -499,6 +658,10 @@ Item {
             onAddItem: function(newItem) {
                 // Save the custom option to the QML file
                 matlabExecutor.addCustomTrialfunOptionToAllItems(newItem)
+            }
+
+            onPropertySaveRequested: function(newProperty) {
+                matlabExecutor.setDropdownState("trialfunDropdown", "default")
             }
 
             onDeleteItem: function(itemToDelete) {
@@ -686,6 +849,60 @@ Item {
                 dftfreqSlider.visible = false
             }
         }
+
+        Column {
+            id: customDropdownContainer
+            width: parent.width
+            spacing: 10
+
+            Component.onCompleted: {
+                var highestIndex = 0
+                for (var i = 0; i < customDropdownContainer.children.length; ++i) {
+                    var child = customDropdownContainer.children[i]
+                    if (!child)
+                        continue
+
+                    attachCustomDropdownSignals(child)
+
+                    if (child.persistentId && child.persistentId.length > 0) {
+                        var match = child.persistentId.match(/(\d+)$/)
+                        if (match) {
+                            var numericValue = parseInt(match[1])
+                            if (!isNaN(numericValue)) {
+                                highestIndex = Math.max(highestIndex, numericValue)
+                            }
+                        }
+                    }
+                }
+
+                if (customDropdownContainer.children.length > 0) {
+                    highestIndex = Math.max(highestIndex, customDropdownContainer.children.length)
+                }
+
+                preprocessingPageRoot.customDropdownCount = Math.max(preprocessingPageRoot.customDropdownCount, highestIndex)
+            }
+            DropdownTemplate {
+                id: customDropdown2
+                property string persistentId: "customDropdown2"
+                property string customLabel: "Custom Dropdown 2"
+                property bool persistenceConnected: false
+                label: "Custom Dropdown 2"
+                matlabProperty: "cfg.test2"
+                matlabPropertyDraft: "cfg.test2"
+                hasAddFeature: true
+                isMultiSelect: true
+                maxSelections: -1
+                model: []
+                allItems: ["foo", "bar", "asdalksd"]
+                selectedItems: ["bar"]
+                addPlaceholder: "Add option..."
+                dropdownState: "default"
+                anchors.left: parent.left
+            }
+
+
+
+}
 
         // Save confirmation message - Center using Item wrapper
         Item {
