@@ -153,6 +153,12 @@ ApplicationWindow {
                 preprocessingPageLoader.item.addDropdownTemplate()
             }
         }
+
+        onAddRangeSliderRequested: {
+            if (preprocessingPageLoader.item && preprocessingPageLoader.item.addRangeSliderTemplate) {
+                preprocessingPageLoader.item.addRangeSliderTemplate()
+            }
+        }
     }
 
     // MouseArea to close menus when clicking outside

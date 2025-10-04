@@ -23,6 +23,7 @@ Rectangle {
     signal createScriptRequested()
     signal editModeToggled(bool checked)
     signal addDropdownRequested()
+    signal addRangeSliderRequested()
     signal menuStateChanged(bool fileMenuOpen, bool matlabSubmenuOpen, bool editMenuOpen)
     
     // Function to close menus (can be called from parent)
@@ -714,6 +715,7 @@ Rectangle {
                     onClicked: {
                         console.log("Add submenu - Range Slider selected")
                         topMenuComponent.closeMenus()
+                        topMenuComponent.addRangeSliderRequested()
                     }
                 }
             }

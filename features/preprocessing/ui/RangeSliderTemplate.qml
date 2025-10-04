@@ -4,7 +4,7 @@ import QtQuick.Controls 2.15
 Item {
     id: rangeSliderTemplate
     width: parent ? parent.width * 0.75 : 225
-    height: (sliderState === "edit") ? 200 : 80
+    height: Math.max(80, contentColumn ? contentColumn.implicitHeight : 80)
 
     // Properties for customization
     property string label: "Range Slider Label"
@@ -16,28 +16,125 @@ Item {
     property real stepSize: 0.1
     property string unit: ""
     property bool enabled: true
-    property string sliderState: "default"  // "default" or "edit"
+    property string sliderState: "default"  // "default", "edit", or "add"
+    property string matlabPropertyDraft: matlabProperty
     property string sliderId: ""  // Identifier for the slider instance
+
+    // Dynamic z-index management
+    property int baseZ: 1000
+    property int activeZ: 2000
+
+    onActiveFocusChanged: {
+        z = activeFocus ? activeZ : baseZ
+    }
+
+    onMatlabPropertyChanged: {
+        if (sliderState !== "add") {
+            matlabPropertyDraft = matlabProperty
+        }
+    }
+
+    onSliderStateChanged: {
+        if (sliderState === "add") {
+            matlabPropertyDraft = matlabProperty
+            if (propertyInput) {
+                Qt.callLater(function() {
+                    propertyInput.forceActiveFocus()
+                    propertyInput.selectAll()
+                })
+            }
+        }
+    }
 
     // Signals
     signal rangeChanged(real firstValue, real secondValue)
     signal deleteRequested()
+    signal propertySaveRequested(string propertyValue)
 
     Column {
+        id: contentColumn
         width: parent.width
         spacing: 10
 
-        Text {
-            id: valueText
-            text: matlabProperty + " = [" + rangeSlider.first.value.toFixed(1) + unit + " " + rangeSlider.second.value.toFixed(1) + unit + "]"
-            font.pixelSize: 12
-            color: "#666"
+        Item {
+            width: parent.width
+            implicitHeight: propertyDisplay.visible ? propertyDisplay.implicitHeight : propertyEditColumn.implicitHeight
 
-            // Double-click to enter edit mode
-            MouseArea {
-                anchors.fill: parent
-                onDoubleClicked: {
-                    sliderState = "edit"
+            Text {
+                id: propertyDisplay
+                visible: sliderState !== "add"
+                text: matlabProperty + " = [" + rangeSlider.first.value.toFixed(1) + unit + " " + rangeSlider.second.value.toFixed(1) + unit + "]"
+                font.pixelSize: 12
+                color: "#666"
+                wrapMode: Text.Wrap
+                width: parent.width
+
+                MouseArea {
+                    anchors.fill: parent
+                    onDoubleClicked: {
+                        sliderState = "edit"
+                    }
+                }
+            }
+
+            Row {
+                id: propertyEditColumn
+                visible: sliderState === "add"
+                width: parent.width
+                spacing: 8
+
+                Rectangle {
+                    width: parent.width * 0.33
+                    height: 32
+                    color: "#f5f5f5"
+                    border.color: "#ccc"
+                    border.width: 1
+                    radius: 3
+
+                    TextInput {
+                        id: propertyInput
+                        anchors.fill: parent
+                        anchors.margins: 6
+                        text: rangeSliderTemplate.matlabPropertyDraft
+                        font.pixelSize: 12
+                        color: "#333"
+                        selectByMouse: true
+                        verticalAlignment: TextInput.AlignVCenter
+                        topPadding: 0
+                        bottomPadding: 0
+                        onTextChanged: {
+                            if (rangeSliderTemplate.matlabPropertyDraft !== text) {
+                                rangeSliderTemplate.matlabPropertyDraft = text
+                                rangeSliderTemplate.matlabProperty = text
+                            }
+                        }
+                    }
+
+                    Text {
+                        anchors.verticalCenter: propertyInput.verticalCenter
+                        anchors.left: propertyInput.left
+                        anchors.right: propertyInput.right
+                        anchors.leftMargin: 6
+                        anchors.rightMargin: 6
+                        text: "cfg."
+                        font.pixelSize: 12
+                        color: "#999"
+                        elide: Text.ElideRight
+                        verticalAlignment: Text.AlignVCenter
+                        horizontalAlignment: Text.AlignLeft
+                        visible: propertyInput.text.length === 0 && !propertyInput.activeFocus
+                    }
+                }
+
+                Text {
+                    id: valuePreview
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "= [" + rangeSlider.first.value.toFixed(1) + unit + " " + rangeSlider.second.value.toFixed(1) + unit + "]"
+                    font.pixelSize: 12
+                    color: "#666"
+                    wrapMode: Text.NoWrap
+                    elide: Text.ElideRight
+                    width: parent.width - propertyEditColumn.spacing - (parent.width * 0.33)
                 }
             }
         }
@@ -128,7 +225,7 @@ Item {
         Column {
             width: parent.width
             spacing: 5
-            visible: sliderState === "edit"
+            visible: sliderState === "edit" || sliderState === "add"
 
             // From input
             Row {
@@ -247,12 +344,40 @@ Item {
         }
     }
 
-    // Icons - only visible in edit mode, positioned to the right of the slider bar
+    // Icons - only visible in edit/add mode, positioned to the right of the slider bar
     Column {
         x: rangeSlider.x + rangeSlider.width + 15
         y: rangeSlider.y + rangeSlider.height / 2 - height / 2
         spacing: 5
-        visible: sliderState === "edit"
+        visible: sliderState === "edit" || sliderState === "add"
+
+        // Save icon
+        Rectangle {
+            width: 25
+            height: 25
+            color: "transparent"
+            border.color: "#ccc"
+            border.width: 1
+            radius: 3
+            visible: sliderState === "add"
+
+            Text {
+                anchors.centerIn: parent
+                text: "💾"
+                font.pixelSize: 12
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: {
+                    rangeSliderTemplate.matlabPropertyDraft = propertyInput.text
+                    rangeSliderTemplate.matlabProperty = rangeSliderTemplate.matlabPropertyDraft
+                    propertySaveRequested(rangeSliderTemplate.matlabProperty)
+                    propertyInput.focus = false
+                    rangeSliderTemplate.sliderState = "default"
+                }
+            }
+        }
 
         // Trash icon
         Rectangle {

@@ -16,6 +16,7 @@ Item {
     property bool isProcessing: false  // Track processing state
     property bool showICABrowser: false  // Track ICA browser visibility
     property int customDropdownCount: 0
+    property int customRangeSliderCount: 0
     
     // Function to initialize eventvalues from main.qml
     function setInitialEventvalues(eventvalues) {
@@ -71,6 +72,29 @@ Item {
         }
     }
 
+    Component {
+        id: customRangeSliderComponent
+        RangeSliderTemplate {
+            label: customLabel
+            matlabProperty: ""
+            from: 0.0
+            to: 1.0
+            firstValue: 0.0
+            secondValue: 1.0
+            stepSize: 0.1
+            unit: ""
+            sliderState: "add"
+            sliderId: ""
+            matlabPropertyDraft: ""
+
+            property string customLabel: ""
+            property string persistentId: ""
+            property bool persistenceConnected: false
+
+            anchors.left: parent ? parent.left : undefined
+        }
+    }
+
     function persistCustomDropdown(dropdown) {
         if (!dropdown)
             return
@@ -105,14 +129,57 @@ Item {
         }
     }
 
+    function persistCustomRangeSlider(rangeSlider) {
+        if (!rangeSlider)
+            return
+
+        var propertyValue = rangeSlider.matlabProperty ? rangeSlider.matlabProperty.trim() : ""
+        if (propertyValue.length === 0)
+            return
+
+        var labelValue = rangeSlider.label ? rangeSlider.label : (rangeSlider.customLabel ? rangeSlider.customLabel : "Custom Range Slider")
+        labelValue = String(labelValue)
+
+        if (rangeSlider.persistentId && rangeSlider.persistentId.length > 0) {
+            matlabExecutor.updateCustomRangeSlider(rangeSlider.persistentId, labelValue, propertyValue, rangeSlider.from, rangeSlider.to, rangeSlider.firstValue, rangeSlider.secondValue, rangeSlider.stepSize, rangeSlider.unit)
+        } else {
+            var assignedId = matlabExecutor.saveCustomRangeSlider(labelValue, propertyValue, rangeSlider.from, rangeSlider.to, rangeSlider.firstValue, rangeSlider.secondValue, rangeSlider.stepSize, rangeSlider.unit)
+            if (assignedId && assignedId.length > 0) {
+                rangeSlider.persistentId = assignedId
+
+                var match = assignedId.match(/(\d+)$/)
+                if (match) {
+                    var numericId = parseInt(match[1])
+                    if (!isNaN(numericId)) {
+                        preprocessingPageRoot.customRangeSliderCount = Math.max(preprocessingPageRoot.customRangeSliderCount, numericId)
+                    }
+                }
+            }
+        }
+    }
+
     function applyEditModeToCustomDropdowns(newState) {
         for (var i = 0; i < customDropdownContainer.children.length; ++i) {
-            var dropdown = customDropdownContainer.children[i]
-            if (!dropdown || dropdown.dropdownState === "add")
+            var child = customDropdownContainer.children[i]
+            if (!child)
                 continue
 
-            if (dropdown.dropdownState !== newState)
-                dropdown.dropdownState = newState
+            // Handle dropdowns
+            if (child.dropdownState !== undefined) {
+                if (child.dropdownState === "add")
+                    continue
+
+                if (child.dropdownState !== newState)
+                    child.dropdownState = newState
+            }
+            // Handle range sliders
+            else if (child.sliderState !== undefined) {
+                if (child.sliderState === "add")
+                    continue
+
+                if (child.sliderState !== newState)
+                    child.sliderState = newState
+            }
         }
     }
 
@@ -180,6 +247,58 @@ Item {
         }
     }
 
+    function attachCustomRangeSliderSignals(rangeSlider) {
+        if (!rangeSlider || rangeSlider.persistenceConnected === true)
+            return
+
+        rangeSlider.persistenceConnected = true
+
+        rangeSlider.propertySaveRequested.connect(function() {
+            persistCustomRangeSlider(rangeSlider)
+        })
+
+        rangeSlider.deleteRequested.connect(function() {
+            if (rangeSlider.persistentId && rangeSlider.persistentId.length > 0) {
+                matlabExecutor.removeCustomRangeSlider(rangeSlider.persistentId)
+            }
+
+            rangeSlider.destroy()
+
+            var remainingHighest = 0
+            for (var i = 0; i < customDropdownContainer.children.length; ++i) {
+                var child = customDropdownContainer.children[i]
+                if (!child || child === rangeSlider)
+                    continue
+
+                if (child.persistentId && child.persistentId.length > 0) {
+                    var match = child.persistentId.match(/(\d+)$/)
+                    if (match) {
+                        var value = parseInt(match[1])
+                        if (!isNaN(value)) {
+                            remainingHighest = Math.max(remainingHighest, value)
+                        }
+                    }
+                }
+            }
+            preprocessingPageRoot.customRangeSliderCount = Math.max(remainingHighest, Math.max(0, customDropdownContainer.children.length - 1))
+        })
+
+        rangeSlider.sliderStateChanged.connect(function(newState) {
+            if (newState === "add")
+                return
+
+            if (preprocessingPageRoot.editModeEnabled && newState === "default") {
+                rangeSlider.sliderState = "edit"
+            } else if (!preprocessingPageRoot.editModeEnabled && newState === "edit") {
+                rangeSlider.sliderState = "default"
+            }
+        })
+
+        if (preprocessingPageRoot.editModeEnabled && rangeSlider.sliderState !== "add") {
+            rangeSlider.sliderState = "edit"
+        }
+    }
+
     function addDropdownTemplate() {
         customDropdownCount += 1
         var labelText = "Custom Dropdown " + customDropdownCount
@@ -203,6 +322,29 @@ Item {
         attachCustomDropdownSignals(dropdown)
 
         console.log("Added new dropdown template:", labelText)
+    }
+
+    function addRangeSliderTemplate() {
+        customRangeSliderCount += 1
+        var labelText = "Custom Range Slider " + customRangeSliderCount
+        var rangeSlider = customRangeSliderComponent.createObject(customDropdownContainer, {
+            customLabel: labelText,
+            label: labelText,
+            sliderState: "add",
+            matlabProperty: "",
+            matlabPropertyDraft: "",
+            persistentId: ""
+        })
+
+        if (!rangeSlider) {
+            console.error("Failed to create custom range slider template")
+            customRangeSliderCount -= 1
+            return
+        }
+
+        attachCustomRangeSliderSignals(rangeSlider)
+
+        console.log("Added new range slider template:", labelText)
     }
     
 
@@ -283,6 +425,10 @@ Item {
     // Signals to communicate with main.qml
     signal openFolderDialog()
     signal openFieldtripDialog()
+    signal createFunctionRequested()
+    signal createScriptRequested()
+    signal addDropdownRequested()
+    signal addRangeSliderRequested()
     signal requestSaveConfiguration(real prestimValue, real poststimValue, string trialfunValue, string eventtypeValue, var selectedChannels, var selectedEventvalues, bool demeanEnabled, real baselineStart, real baselineEnd, bool dftfilterEnabled, real dftfreqStart, real dftfreqEnd)
     signal refreshFileExplorer()
     
