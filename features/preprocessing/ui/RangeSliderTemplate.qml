@@ -202,24 +202,6 @@ Item {
             }
         }
 
-        // Optional value display
-        Row {
-            width: parent.width
-            spacing: 20
-            visible: sliderState === "default"
-
-            Text {
-                text: "Min: " + rangeSlider.first.value.toFixed(1) + unit
-                font.pixelSize: 11
-                color: "#888"
-            }
-
-            Text {
-                text: "Max: " + rangeSlider.second.value.toFixed(1) + unit
-                font.pixelSize: 11
-                color: "#888"
-            }
-        }
 
         // Edit mode inputs
         Column {

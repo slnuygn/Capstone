@@ -1008,7 +1008,10 @@ Item {
                     if (!child)
                         continue
 
-                    attachCustomDropdownSignals(child)
+                    // Only attach dropdown signals to dropdown components
+                    if (child.hasOwnProperty('propertySaveRequested') && child.hasOwnProperty('addItem')) {
+                        attachCustomDropdownSignals(child)
+                    }
 
                     if (child.persistentId && child.persistentId.length > 0) {
                         var match = child.persistentId.match(/(\d+)$/)

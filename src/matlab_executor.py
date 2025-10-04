@@ -1928,3 +1928,246 @@ browse_ICA('{mat_file_path.replace(chr(92), '/')}');
         except Exception as e:
             print(f"Error updating DFT frequency slider values: {str(e)}")
             return False
+
+    def _get_custom_range_slider_block_positions(self, content: str):
+        pattern = re.compile(r'(\n\s*RangeSliderTemplate\s*\{\s*id\s*:\s*(customRangeSlider\d+)[\s\S]*?\n\s*\})')
+        positions = {}
+        for match in pattern.finditer(content):
+            block_id = match.group(2)
+            positions[block_id] = (match.start(1), match.end(1))
+        return positions
+
+    def _build_custom_range_slider_snippet(
+        self,
+        range_slider_id: str,
+        label: str,
+        matlab_property: str,
+        from_val: float,
+        to_val: float,
+        first_value: float,
+        second_value: float,
+        step_size: float,
+        unit: str,
+    ) -> str:
+        label = label.strip() or range_slider_id
+        matlab_property = matlab_property.strip()
+        if matlab_property and not matlab_property.startswith("cfg."):
+            matlab_property = f"cfg.{matlab_property}"
+
+        escaped_label = self._escape_qml_string(label)
+        escaped_property = self._escape_qml_string(matlab_property)
+        escaped_unit = self._escape_qml_string(unit)
+
+        lines = [
+            "",
+            "            RangeSliderTemplate {",
+            f"                id: {range_slider_id}",
+            f"                property string persistentId: \"{range_slider_id}\"",
+            f"                property string customLabel: \"{escaped_label}\"",
+            "                property bool persistenceConnected: false",
+            f"                label: \"{escaped_label}\"",
+            f"                matlabProperty: \"{escaped_property}\"",
+            f"                from: {from_val}",
+            f"                to: {to_val}",
+            f"                firstValue: {first_value}",
+            f"                secondValue: {second_value}",
+            f"                stepSize: {step_size}",
+            f"                unit: \"{escaped_unit}\"",
+            '                sliderState: "default"',
+            '                sliderId: ""',
+            '                matlabPropertyDraft: ""',
+            '                anchors.left: parent.left',
+            "            }\n",
+        ]
+
+        return "\n".join(lines)
+
+    def _insert_custom_range_slider_snippet(self, content: str, snippet: str):
+        start_marker = "id: customDropdownContainer"
+        start_index = content.find(start_marker)
+        if start_index == -1:
+            print("Custom dropdown container not found for range slider insertion.")
+            return content, False
+
+        # Find the opening brace of the container
+        open_brace_index = content.rfind('{', 0, start_index)
+        if open_brace_index == -1:
+            print("Container opening brace not found for range slider insertion.")
+            return content, False
+
+        # Find where to insert - look for the closing brace of the container
+        depth = 0
+        insert_index = -1
+        for idx in range(open_brace_index, len(content)):
+            char = content[idx]
+            if char == '{':
+                depth += 1
+            elif char == '}':
+                depth -= 1
+                if depth == 0:
+                    insert_index = idx
+                    break
+
+        if insert_index == -1:
+            print("Container closing brace not found for range slider insertion.")
+            return content, False
+
+        # Insert the snippet before the closing brace
+        new_content = content[:insert_index] + snippet + content[insert_index:]
+        return new_content, True
+
+    def _replace_custom_range_slider_block(self, content: str, range_slider_id: str, new_snippet: str):
+        positions = self._get_custom_range_slider_block_positions(content)
+        if range_slider_id not in positions:
+            return content, False
+
+        start, end = positions[range_slider_id]
+        new_content = content[:start] + new_snippet + content[end:]
+        return new_content, True
+
+    def _next_custom_range_slider_index(self, existing_ids):
+        max_index = -1
+        for id_str in existing_ids:
+            match = re.match(r'customRangeSlider(\d+)', id_str)
+            if match:
+                index = int(match.group(1))
+                max_index = max(max_index, index)
+        return max_index + 1 if max_index >= 0 else 1
+
+    @pyqtSlot(str, str, float, float, float, float, float, str, result=str)
+    def saveCustomRangeSlider(self, label, matlab_property, from_val, to_val, first_value, second_value, step_size, unit):
+        """Persist a newly created custom range slider to preprocessing_page.qml and return its assigned id."""
+        try:
+            if not os.path.exists(self._preprocessing_qml_path):
+                print("Preprocessing QML file not found when saving custom range slider.")
+                return ""
+
+            with open(self._preprocessing_qml_path, 'r', encoding='utf-8') as file:
+                content = file.read()
+
+            positions = self._get_custom_range_slider_block_positions(content)
+
+            normalized_property = (matlab_property or "").strip()
+            if normalized_property and not normalized_property.startswith("cfg."):
+                normalized_property = f"cfg.{normalized_property}"
+            escaped_property = f'"{self._escape_qml_string(normalized_property)}"'
+
+            # If a range slider with the same matlab property exists, update it instead of creating duplicate
+            for existing_id, (start, end) in positions.items():
+                block_text = content[start:end]
+                if f'matlabProperty: {escaped_property}' in block_text:
+                    snippet = self._build_custom_range_slider_snippet(
+                        existing_id,
+                        label,
+                        normalized_property,
+                        from_val,
+                        to_val,
+                        first_value,
+                        second_value,
+                        step_size,
+                        unit,
+                    )
+                    new_content, replaced = self._replace_custom_range_slider_block(content, existing_id, snippet)
+                    if replaced:
+                        with open(self._preprocessing_qml_path, 'w', encoding='utf-8') as file:
+                            file.write(new_content)
+                        print(f"Updated existing custom range slider '{existing_id}' with new settings.")
+                    return existing_id
+
+            next_index = self._next_custom_range_slider_index(positions.keys()) or 1
+            range_slider_id = f"customRangeSlider{next_index}"
+
+            snippet = self._build_custom_range_slider_snippet(
+                range_slider_id,
+                label,
+                normalized_property,
+                from_val,
+                to_val,
+                first_value,
+                second_value,
+                step_size,
+                unit,
+            )
+
+            new_content, inserted = self._insert_custom_range_slider_snippet(content, snippet)
+            if not inserted:
+                return ""
+
+            with open(self._preprocessing_qml_path, 'w', encoding='utf-8') as file:
+                file.write(new_content)
+
+            print(f"Saved new custom range slider '{range_slider_id}' to QML file.")
+            return range_slider_id
+
+        except Exception as e:
+            print(f"Error saving custom range slider: {str(e)}")
+            return ""
+
+    @pyqtSlot(str, str, str, float, float, float, float, float, str, result=bool)
+    def updateCustomRangeSlider(self, range_slider_id, label, matlab_property, from_val, to_val, first_value, second_value, step_size, unit):
+        """Update an existing custom range slider definition in preprocessing_page.qml."""
+        try:
+            if not os.path.exists(self._preprocessing_qml_path):
+                print("Preprocessing QML file not found when updating custom range slider.")
+                return False
+
+            with open(self._preprocessing_qml_path, 'r', encoding='utf-8') as file:
+                content = file.read()
+
+            snippet = self._build_custom_range_slider_snippet(
+                range_slider_id,
+                label,
+                matlab_property,
+                from_val,
+                to_val,
+                first_value,
+                second_value,
+                step_size,
+                unit,
+            )
+
+            new_content, replaced = self._replace_custom_range_slider_block(content, range_slider_id, snippet)
+            if not replaced:
+                print(f"Custom range slider '{range_slider_id}' not found for update; attempting to append new block.")
+                new_content, inserted = self._insert_custom_range_slider_snippet(content, snippet)
+                if not inserted:
+                    return False
+
+            with open(self._preprocessing_qml_path, 'w', encoding='utf-8') as file:
+                file.write(new_content)
+
+            print(f"Updated custom range slider '{range_slider_id}' in QML file.")
+            return True
+
+        except Exception as e:
+            print(f"Error updating custom range slider: {str(e)}")
+            return False
+
+    @pyqtSlot(str, result=bool)
+    def removeCustomRangeSlider(self, range_slider_id):
+        """Remove a custom range slider definition from preprocessing_page.qml."""
+        try:
+            if not os.path.exists(self._preprocessing_qml_path):
+                print("Preprocessing QML file not found when removing custom range slider.")
+                return False
+
+            with open(self._preprocessing_qml_path, 'r', encoding='utf-8') as file:
+                content = file.read()
+
+            positions = self._get_custom_range_slider_block_positions(content)
+            if range_slider_id not in positions:
+                print(f"Custom range slider '{range_slider_id}' not found for removal.")
+                return False
+
+            start, end = positions[range_slider_id]
+            new_content = content[:start] + content[end:]
+            
+            with open(self._preprocessing_qml_path, 'w', encoding='utf-8') as file:
+                file.write(new_content)
+
+            print(f"Removed custom range slider '{range_slider_id}' from QML file.")
+            return True
+
+        except Exception as e:
+            print(f"Error removing custom range slider: {str(e)}")
+            return False
