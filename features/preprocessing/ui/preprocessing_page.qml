@@ -449,78 +449,33 @@ Item {
         ScrollView {
             anchors.fill: parent
             clip: true
+            contentWidth: mainColumn.width
+            contentHeight: mainColumn.implicitHeight
             
             Column {
                 id: mainColumn
                 spacing: 10  // Reduced spacing for tighter layout
-                width: parent.width
+                width: Math.max(preprocessingPageRoot.width * 0.5, 400)
+                anchors.horizontalCenter: parent.horizontalCenter
                 
                 Component.onCompleted: {
                     console.log("Fixed ScrollView - Column height:", height)
                     console.log("Fixed ScrollView - Available width:", width)
                 }
-
+            
             // FieldTrip Path Selection
             Column {
                 width: parent.width
                 spacing: 5
 
                 Text {
+                    // Keep layout sizing but hide text visually
                     text: "addpath('" + preprocessingPageRoot.fieldtripPath + "')"
                     font.pixelSize: 12
                     color: "#666"
-                }
-
-                Row {
-                width: parent.width
-                spacing: 10
-
-                // Current FieldTrip Path Display
-                Rectangle {
-                    width: parent.width - 40  // Fill available width minus button width and spacing
-                    height: 30
-                    color: "#f8f9fa"
-                    border.color: "#dee2e6"
-                    border.width: 1
-                    radius: 3
-
-                    Text {
-                        id: fieldtripPathText
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        anchors.leftMargin: 10
-                        anchors.rightMargin: 10
-                        text: preprocessingPageRoot.fieldtripPath || "C:\\FIELDTRIP"
-                        font.pixelSize: 11
-                        color: "#666"
-                        elide: Text.ElideLeft
-                    }
-                }
-
-                // Folder Icon Button
-                Button {
-                    width: 30
-                    height: 30
-                    
-                    background: Rectangle {
-                        color: parent.pressed ? "#dee2e6" : (parent.hovered ? "#f1f3f4" : "transparent")
-                        radius: 4
-                    }
-                    
-                    contentItem: Text {
-                        text: "📁"
-                        font.pixelSize: 16
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
-
-                    onClicked: {
-                        preprocessingPageRoot.openFieldtripDialog()
-                    }
+                    opacity: 0
                 }
             }
-        }
 
         // Trialfun dropdown
         DropdownTemplate {

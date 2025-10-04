@@ -570,6 +570,7 @@ class MatlabExecutor(QObject):
             
             # Path to the preprocessing directory
             preprocessing_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "features", "preprocessing")
+            matlab_scripts_dir = os.path.join(preprocessing_dir, "matlab")
             
             # Emit a status message that processing has started
             self.configSaved.emit("Configuration saved! Starting MATLAB processing...\nProcessing data files in background.\nThe application will remain responsive during processing.")
@@ -1042,6 +1043,7 @@ class MatlabExecutor(QObject):
             
             # Get paths
             preprocessing_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "features", "preprocessing")
+            matlab_scripts_dir = os.path.join(preprocessing_dir, "matlab")
             matlab_path = r"C:\Program Files\MATLAB\R2023a\bin\matlab.exe"
             
             # Check if MATLAB exists
@@ -1060,6 +1062,7 @@ class MatlabExecutor(QObject):
 addpath('{self.getCurrentFieldtripPath().replace(chr(92), '/')}');
 ft_defaults;
 addpath('{preprocessing_dir.replace(chr(92), '/')}');
+addpath(genpath('{matlab_scripts_dir.replace(chr(92), '/')}'));
 browse_ICA('{mat_file_path.replace(chr(92), '/')}');
 """
                     
