@@ -3,7 +3,7 @@ import QtQuick.Controls 2.15
 
 Item {
     id: dropdownTemplate
-    width: parent ? parent.width * 0.75 : 150
+    width: parent ? parent.width * 0.75 : 225
     height: Math.max(60, contentColumn ? contentColumn.implicitHeight : 60)
     z: 1000  // Base z-index
 
@@ -321,7 +321,7 @@ Item {
                         Repeater {
                             model: comboBox.model
                             delegate: Rectangle {
-                                width: parent.width
+                                width: parent.parent.parent.width
                                 height: 25
                                 color: comboBox.currentIndex === index ? "#e3f2fd" : (optionMouseArea.containsMouse ? "#f5f5f5" : "transparent")
 
@@ -332,7 +332,7 @@ Item {
 
                                     Text {
                                         id: singleOptionText
-                                        width: parent.width - 25 - 10  // Available width minus trash icon and margin
+                                        width: dropdownTemplate.dropdownState === "edit" ? parent.width - 25 - 10 : parent.parent.parent.parent.parent.width  // Full width when not editing, adjusted for trash icon when editing
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: modelData
                                         font.pixelSize: 12
@@ -378,7 +378,7 @@ Item {
                         // Add new item option (only when hasAddFeature is true and in edit/add mode)
                         Rectangle {
                             visible: hasAddFeature && (dropdownState === "edit" || dropdownState === "add")
-                            width: parent.width
+                            width: parent.parent.parent.width
                             height: singleAddInput.visible ? 30 : 25
                             color: "transparent"
 
@@ -546,7 +546,7 @@ Item {
 
                     // Include All option (only for multi-select with unlimited selections)
                     Rectangle {
-                        width: parent.width
+                        width: parent.parent.parent.width
                         height: maxSelections === 1 ? 0 : 25
                         visible: maxSelections !== 1
                         color: selectedItems.length === allItems.length ? "#e3f2fd" : "transparent"
@@ -603,7 +603,7 @@ Item {
                         model: allItems
 
                         Rectangle {
-                            width: parent.width
+                            width: parent.parent.parent.width
                             height: 25
                             color: selectedItems.indexOf(modelData) !== -1 ? "#e3f2fd" : (optionMouseArea.containsMouse ? "#f5f5f5" : "transparent")
 
@@ -632,7 +632,7 @@ Item {
 
                                 Text {
                                     id: optionText
-                                    width: parent.width - 15 - 25 - 8 - 10  // Available width minus checkbox, trash icon, spacing, and margin
+                                    width: dropdownTemplate.dropdownState === "edit" ? parent.width - 15 - 25 - 8 - 10 : parent.parent.parent.parent.parent.width  // Full width when not editing, adjusted for icons when editing
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: modelData
                                     font.pixelSize: 12
@@ -696,7 +696,7 @@ Item {
                         // Add new item option (only when hasAddFeature is true and in edit/add mode)
                     Rectangle {
                         visible: hasAddFeature && (dropdownState === "edit" || dropdownState === "add")
-                        width: parent.width
+                        width: parent.parent.parent.width
                         height: addInput.visible ? 30 : 25
                         color: "transparent"
 

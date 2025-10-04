@@ -614,7 +614,7 @@ Item {
             Column {
                 id: mainColumn
                 spacing: 10  // Reduced spacing for tighter layout
-                width: Math.max(preprocessingPageRoot.width * 0.5, 400)
+                width: Math.max(preprocessingPageRoot.width * 0.25, 200)
                 anchors.horizontalCenter: parent.horizontalCenter
                 
                 Component.onCompleted: {
