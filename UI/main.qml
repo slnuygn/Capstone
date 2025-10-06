@@ -334,14 +334,12 @@ ApplicationWindow {
         Item {
             id: featureExtractionAnalysisPage
             anchors.fill: parent
-            anchors.margins: 20
             visible: contentArea.currentIndex === 1
 
-            Text {
-                anchors.centerIn: parent
-                text: "hello world 2"
-                font.pixelSize: 24
-                color: "#333"
+            Loader {
+                id: featureExtractionAnalysisPageLoader
+                anchors.fill: parent
+                source: "../features/analysis/ui/processing_page.qml"
             }
         }
 
