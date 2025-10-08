@@ -4,14 +4,20 @@ import QtQuick.Window 2.15
 import "."
 
 ScrollView {
-    anchors.fill: parent
+    id: scrollArea
+    anchors.top: parent.top
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.bottom: parent.bottom
+    anchors.topMargin: 10
     clip: true
+    contentWidth: availableWidth
 
     Column {
-        width: parent.width
-        spacing: 10
+        width: scrollArea.availableWidth
+        spacing: 5
 
-    ModuleTemplate {
+        ModuleTemplate {
             displayText: "ERP Analysis"
         }
         ModuleTemplate {
@@ -24,8 +30,5 @@ ScrollView {
         ModuleTemplate {
             displayText: "Spectral Analysis"
         }
-
-        
-
     }
 }

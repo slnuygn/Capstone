@@ -4,24 +4,31 @@ import QtQuick.Window 2.15
 Item {
     id: moduleTemplate
     width: parent.width
-    height: Screen.height / 4
+    height: rectangle.height + 4
     z: 1000 
 
     property string displayText: "Analysis Module"
 
     Rectangle {
-        anchors.fill: parent
-        anchors.margins: 10
+        id: rectangle
+        width: parent.width - 10
+        height: text.implicitHeight + 20
+        anchors.top: parent.top
+        anchors.topMargin: 2
+        anchors.horizontalCenter: parent.horizontalCenter
         color: "#f0f0f0"
         border.color: "#ccc"
         border.width: 1
-        radius: 5
+        radius: 3
 
         Text {
+            id: text
             text: displayText
             font.pixelSize: 24
             color: "#333"
-            anchors.centerIn: parent
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.leftMargin: 10
         }
     }
 }
