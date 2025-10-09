@@ -131,7 +131,24 @@ try
     timestamp = datestr(now, 'yyyy-mm-dd_HH-MM-SS');
     script_filename = sprintf('rejected_ICs_%s.m', timestamp);
     
-    fid = fopen(script_filename, 'w');
+    script_directory = fileparts(mfilename('fullpath'));
+    if isempty(script_directory)
+        script_directory = pwd;
+    end
+    rejected_folder_name = 'rejected ICs';
+    rejected_folder_path = fullfile(script_directory, rejected_folder_name);
+    if exist(rejected_folder_path, 'dir') ~= 7
+        mkdir_status = mkdir(rejected_folder_path);
+        if mkdir_status
+            fprintf('Created folder for rejected ICs: %s\n', rejected_folder_path);
+        else
+            fprintf('Warning: Could not create folder %s. Using script directory instead.\n', rejected_folder_path);
+            rejected_folder_path = script_directory;
+        end
+    end
+    script_fullpath = fullfile(rejected_folder_path, script_filename);
+    
+    fid = fopen(script_fullpath, 'w');
     if fid ~= -1
         % Write header
         fprintf(fid, '%% Rejected ICA Components Results\n');
@@ -160,9 +177,25 @@ try
         fprintf(fid, '%% Total components rejected: %d\n', total_rejections);
         
         fclose(fid);
-        fprintf('Results saved to script file: %s\n', script_filename);
+        fprintf('Results saved to script file: %s\n', script_fullpath);
     else
-        fprintf('Warning: Could not create script file %s\n', script_filename);
+        fprintf('Warning: Could not create script file %s\n', script_fullpath);
+    end
+    
+    try
+        fprintf('\nApplying reject_components to produce cleaned data...\n');
+        sensor_space_data = reconstruct_sensor_data(ICA_data);
+        ICApplied = arrayfun(@(idx) ICA_data(idx), 1:length(ICA_data), 'UniformOutput', false);
+        clean_data = reject_components(sensor_space_data, ICApplied, rejected_ICs_array);
+        assignin('base', 'clean_data', clean_data);
+        fprintf('Cleaned data assigned to workspace as "clean_data".\n');
+        [mat_folder, mat_basename, ~] = fileparts(mat_file_path);
+        clean_filename = sprintf('%s_clean.mat', mat_basename);
+        clean_fullpath = fullfile(mat_folder, clean_filename);
+        save(clean_fullpath, 'clean_data', 'rejected_ICs_array', 'script_fullpath');
+        fprintf('Cleaned data saved to %s\n', clean_fullpath);
+    catch rejectionME
+        fprintf('Warning: Failed to apply reject_components within browse_ICA (%s).\n', rejectionME.message);
     end
     
     fprintf('ICA component browsing completed.\n');
@@ -216,6 +249,24 @@ end
             is_ica = true;
         else
             fprintf('  -> Missing required FieldTrip fields\n');
+        end
+    end
+
+    function data = reconstruct_sensor_data(ICA_struct)
+        % Rebuild sensor-space data from ICA components to enable rejection
+        num_subjects = numel(ICA_struct);
+        data = cell(1, num_subjects);
+        for subjIdx = 1:num_subjects
+            comp = ICA_struct(subjIdx);
+            raw = struct();
+            raw.label = comp.topolabel;
+            raw.fsample = comp.fsample;
+            raw.time = comp.time;
+            raw.trial = cell(size(comp.trial));
+            for trialIdx = 1:numel(comp.trial)
+                raw.trial{trialIdx} = comp.topo * comp.trial{trialIdx};
+            end
+            data{subjIdx} = raw;
         end
     end
 
