@@ -9,13 +9,13 @@ ScrollView {
     anchors.left: parent.left
     anchors.right: parent.right
     anchors.bottom: parent.bottom
-    anchors.topMargin: 10
+    anchors.topMargin: 5
     clip: true
     contentWidth: availableWidth
 
     Column {
         width: scrollArea.availableWidth
-        spacing: 5
+        spacing: 1
 
         ModuleTemplate {
             displayText: "ERP Analysis"
