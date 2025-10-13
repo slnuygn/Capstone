@@ -4,6 +4,7 @@ import subprocess
 import re
 import threading
 import json
+from typing import List, Optional
 from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, QThread
 import scipy.io
 
@@ -277,6 +278,116 @@ class MatlabExecutor(QObject):
         start, end = positions[dropdown_id]
         updated_content = content[:start] + content[end:]
         return updated_content, True
+
+    def _get_preprocess_data_script_path(self) -> Optional[str]:
+        """Return the absolute path to preprocess_data.m, trying known locations."""
+        candidates = [
+            resource_path("preprocessing/preprocess_data.m"),
+            os.path.join(self._project_root, "features", "preprocessing", "matlab", "preprocess_data.m"),
+        ]
+
+        for candidate in candidates:
+            if candidate and os.path.exists(candidate):
+                return candidate
+
+        print("Unable to resolve preprocess_data.m path.")
+        return None
+
+    def _escape_matlab_single_quotes(self, value: str) -> str:
+        return value.replace("'", "''") if value else value
+
+    def _is_numeric_like(self, value: str) -> bool:
+        try:
+            float(value)
+            return True
+        except (ValueError, TypeError):
+            return False
+
+    def _format_matlab_assignment_value(self, values: List[str], use_cell_format: bool) -> str:
+        if not values:
+            return "[]"
+
+        if use_cell_format or len(values) > 1:
+            cell_items = []
+            for raw_value in values:
+                if raw_value is None:
+                    continue
+                text_value = str(raw_value).strip()
+                if text_value:
+                    cell_items.append(f"'{self._escape_matlab_single_quotes(text_value)}'")
+            return "{" + " ".join(cell_items) + "}"
+
+        single = str(values[0]) if values else ""
+        normalized = single.strip()
+        if self._is_numeric_like(normalized):
+            return normalized
+
+        lower = normalized.lower()
+        if lower in {"true", "false"}:
+            return lower
+
+        return f"'{self._escape_matlab_single_quotes(normalized)}'"
+
+    def _format_matlab_numeric_value(self, value) -> str:
+        try:
+            numeric = float(value)
+            if abs(numeric - round(numeric)) < 1e-9:
+                return str(int(round(numeric)))
+            formatted = f"{numeric:.6f}".rstrip('0').rstrip('.')
+            return formatted if formatted else "0"
+        except (ValueError, TypeError):
+            return str(value)
+
+    def _format_matlab_numeric_range(self, first_value, second_value) -> str:
+        formatted_first = self._format_matlab_numeric_value(first_value)
+        formatted_second = self._format_matlab_numeric_value(second_value)
+        return f"[{formatted_first} {formatted_second}]"
+
+    def _replace_or_insert_matlab_assignment(self, content: str, property_name: str, formatted_value: str):
+        pattern = rf"(?m)^(\s*{re.escape(property_name)}\s*=\s*)(.*)$"
+
+        def _replacement(match: re.Match) -> str:
+            prefix = match.group(1)
+            remainder = match.group(2)
+
+            comment = ""
+            if '%' in remainder:
+                comment_index = remainder.find('%')
+                comment = remainder[comment_index:].rstrip()
+                remainder = remainder[:comment_index]
+
+            new_line = f"{prefix}{formatted_value};"
+            if comment:
+                if not comment.startswith(' '):
+                    new_line += ' '
+                new_line += comment
+
+            return new_line
+
+        new_content, count = re.subn(pattern, _replacement, content, count=1)
+        if count:
+            return True, new_content
+
+        insertion_pattern = r'(?m)^\s*prepped_data\s*=\s*ft_preprocessing'
+        match = re.search(insertion_pattern, content)
+        new_line = f"{property_name} = {formatted_value};\n"
+        if match:
+            idx = match.start()
+            return False, content[:idx] + new_line + content[idx:]
+
+        if content and not content.endswith('\n'):
+            content += '\n'
+
+        return False, content + new_line
+
+    def _remove_matlab_assignment(self, content: str, property_name: str):
+        pattern = rf"(?m)^\s*{re.escape(property_name)}\s*=.*(?:\n|$)"
+        new_content, count = re.subn(pattern, "", content, count=1)
+        if count:
+            # Clean up excessive blank lines introduced by removal
+            new_content = re.sub(r'\n{3,}', '\n\n', new_content)
+            return True, new_content
+        return False, content
     
     @pyqtSlot(result=float)
     def getCurrentPrestim(self):
@@ -669,6 +780,166 @@ class MatlabExecutor(QObject):
             print(error_msg)
             self.configSaved.emit(error_msg)
     
+    @pyqtSlot(str, 'QVariant', bool, result=bool)
+    def saveDropdownPropertyToMatlab(self, matlab_property, selected_values, use_cell_format):
+        """Persist a dropdown selection as an assignment line in preprocess_data.m."""
+        try:
+            normalized_property = (matlab_property or "").strip()
+            if not normalized_property:
+                return False
+
+            if not normalized_property.startswith("cfg."):
+                normalized_property = f"cfg.{normalized_property}"
+
+            if hasattr(selected_values, 'toVariant'):
+                selected_values = selected_values.toVariant()
+
+            values_list = []
+            if isinstance(selected_values, (list, tuple)):
+                for value in selected_values:
+                    value_str = str(value).strip()
+                    if value_str:
+                        values_list.append(value_str)
+            elif isinstance(selected_values, str):
+                value_str = selected_values.strip()
+                if value_str:
+                    values_list.append(value_str)
+            elif selected_values is not None:
+                value_str = str(selected_values).strip()
+                if value_str and value_str.lower() not in {"undefined", "null"}:
+                    values_list.append(value_str)
+
+            if not values_list:
+                info_msg = f"No values provided for {normalized_property}; skipping update."
+                print(info_msg)
+                if use_cell_format or len(values) > 1:
+                    cell_items = [f"'{self._escape_matlab_single_quotes(v.strip())}'" for v in values]
+
+            script_path = self._get_preprocess_data_script_path()
+            if not script_path:
+                error_msg = "preprocess_data.m not found; cannot persist dropdown property."
+                print(error_msg)
+                self.configSaved.emit(error_msg)
+                return False
+                if self._is_numeric_like(normalized):
+                    return normalized
+
+            with open(script_path, 'r', encoding='utf-8') as file:
+                content = file.read()
+
+            formatted_value = self._format_matlab_assignment_value(values_list, use_cell_format)
+            replaced, new_content = self._replace_or_insert_matlab_assignment(content, normalized_property, formatted_value)
+
+            if new_content == content:
+                info_msg = f"No changes required for {normalized_property}."
+                print(info_msg)
+                self.configSaved.emit(info_msg)
+                return False
+
+            with open(script_path, 'w', encoding='utf-8') as file:
+                file.write(new_content)
+
+            status = "Updated" if replaced else "Inserted"
+            success_msg = f"{status} {normalized_property} = {formatted_value} in preprocess_data.m"
+            print(success_msg)
+            self.configSaved.emit(success_msg)
+            return True
+
+        except Exception as e:
+            error_msg = f"Error saving {matlab_property} to preprocess_data.m: {str(e)}"
+            print(error_msg)
+            self.configSaved.emit(error_msg)
+            return False
+
+    @pyqtSlot(str, float, float, str, result=bool)
+    def saveRangeSliderPropertyToMatlab(self, matlab_property, first_value, second_value, unit):
+        """Persist a range slider selection as a MATLAB numeric array assignment."""
+        try:
+            normalized_property = (matlab_property or "").strip()
+            if not normalized_property:
+                return False
+
+            if not normalized_property.startswith("cfg."):
+                normalized_property = f"cfg.{normalized_property}"
+
+            script_path = self._get_preprocess_data_script_path()
+            if not script_path:
+                error_msg = "preprocess_data.m not found; cannot persist range slider property."
+                print(error_msg)
+                self.configSaved.emit(error_msg)
+                return False
+
+            with open(script_path, 'r', encoding='utf-8') as file:
+                content = file.read()
+
+            formatted_value = self._format_matlab_numeric_range(first_value, second_value)
+            replaced, new_content = self._replace_or_insert_matlab_assignment(content, normalized_property, formatted_value)
+
+            if new_content == content:
+                info_msg = f"No changes required for {normalized_property}."
+                print(info_msg)
+                self.configSaved.emit(info_msg)
+                return False
+
+            with open(script_path, 'w', encoding='utf-8') as file:
+                file.write(new_content)
+
+            status = "Updated" if replaced else "Inserted"
+            unit_suffix = f" {unit}" if unit else ""
+            success_msg = f"{status} {normalized_property} = {formatted_value}{unit_suffix} in preprocess_data.m"
+            print(success_msg)
+            self.configSaved.emit(success_msg)
+            return True
+
+        except Exception as e:
+            error_msg = f"Error saving range slider {matlab_property} to preprocess_data.m: {str(e)}"
+            print(error_msg)
+            self.configSaved.emit(error_msg)
+            return False
+
+    @pyqtSlot(str, result=bool)
+    def removeMatlabProperty(self, matlab_property):
+        """Remove a MATLAB assignment line for the given property from preprocess_data.m."""
+        try:
+            normalized_property = (matlab_property or "").strip()
+            if not normalized_property:
+                return False
+
+            if not normalized_property.startswith("cfg."):
+                normalized_property = f"cfg.{normalized_property}"
+
+            script_path = self._get_preprocess_data_script_path()
+            if not script_path:
+                error_msg = "preprocess_data.m not found; cannot remove property."
+                print(error_msg)
+                self.configSaved.emit(error_msg)
+                return False
+
+            with open(script_path, 'r', encoding='utf-8') as file:
+                content = file.read()
+
+            removed, new_content = self._remove_matlab_assignment(content, normalized_property)
+
+            if not removed:
+                info_msg = f"No assignment found for {normalized_property} in preprocess_data.m"
+                print(info_msg)
+                self.configSaved.emit(info_msg)
+                return False
+
+            with open(script_path, 'w', encoding='utf-8') as file:
+                file.write(new_content)
+
+            success_msg = f"Removed {normalized_property} assignment from preprocess_data.m"
+            print(success_msg)
+            self.configSaved.emit(success_msg)
+            return True
+
+        except Exception as e:
+            error_msg = f"Error removing {matlab_property} from preprocess_data.m: {str(e)}"
+            print(error_msg)
+            self.configSaved.emit(error_msg)
+            return False
+
     @pyqtSlot(list)
     def updateSelectedChannels(self, selected_channels):
         """Update the accepted_channels in preprocessing.m with the selected channels"""

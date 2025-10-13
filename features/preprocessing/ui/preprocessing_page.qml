@@ -189,7 +189,7 @@ Item {
 
         dropdown.persistenceConnected = true
 
-        dropdown.propertySaveRequested.connect(function() {
+        dropdown.propertySaveRequested.connect(function(propertyName, selectedValues, useCellFormat) {
             persistCustomDropdown(dropdown)
         })
 
@@ -253,7 +253,7 @@ Item {
 
         rangeSlider.persistenceConnected = true
 
-        rangeSlider.propertySaveRequested.connect(function() {
+        rangeSlider.propertySaveRequested.connect(function(propertyName, firstValue, secondValue, unit) {
             persistCustomRangeSlider(rangeSlider)
         })
 
@@ -806,7 +806,7 @@ Item {
                 matlabExecutor.addCustomTrialfunOptionToAllItems(newItem)
             }
 
-            onPropertySaveRequested: function(newProperty) {
+            onPropertySaveRequested: function(propertyName, selectedValues, useCellFormat) {
                 matlabExecutor.setDropdownState("trialfunDropdown", "default")
             }
 
@@ -1011,6 +1011,8 @@ Item {
                     // Only attach dropdown signals to dropdown components
                     if (child.hasOwnProperty('propertySaveRequested') && child.hasOwnProperty('addItem')) {
                         attachCustomDropdownSignals(child)
+                    } else if (child.hasOwnProperty('sliderState') && child.hasOwnProperty('rangeChanged')) {
+                        attachCustomRangeSliderSignals(child)
                     }
 
                     if (child.persistentId && child.persistentId.length > 0) {
@@ -1029,24 +1031,6 @@ Item {
                 }
 
                 preprocessingPageRoot.customDropdownCount = Math.max(preprocessingPageRoot.customDropdownCount, highestIndex)
-            }
-            DropdownTemplate {
-                id: customDropdown2
-                property string persistentId: "customDropdown2"
-                property string customLabel: "Custom Dropdown 2"
-                property bool persistenceConnected: false
-                label: "Custom Dropdown 2"
-                matlabProperty: "cfg.test2"
-                matlabPropertyDraft: "cfg.test2"
-                hasAddFeature: true
-                isMultiSelect: true
-                maxSelections: -1
-                model: []
-                allItems: ["foo", "bar", "asdalksd"]
-                selectedItems: ["bar"]
-                addPlaceholder: "Add option..."
-                dropdownState: "default"
-                anchors.left: parent.left
             }
 
 

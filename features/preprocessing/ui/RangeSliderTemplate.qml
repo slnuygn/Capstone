@@ -49,7 +49,7 @@ Item {
     // Signals
     signal rangeChanged(real firstValue, real secondValue)
     signal deleteRequested()
-    signal propertySaveRequested(string propertyValue)
+    signal propertySaveRequested(string propertyValue, real firstValue, real secondValue, string unit)
 
     Column {
         id: contentColumn
@@ -354,7 +354,19 @@ Item {
                 onClicked: {
                     rangeSliderTemplate.matlabPropertyDraft = propertyInput.text
                     rangeSliderTemplate.matlabProperty = rangeSliderTemplate.matlabPropertyDraft
-                    propertySaveRequested(rangeSliderTemplate.matlabProperty)
+
+                    if (typeof matlabExecutor !== "undefined" && matlabExecutor.saveRangeSliderPropertyToMatlab) {
+                        matlabExecutor.saveRangeSliderPropertyToMatlab(
+                                    rangeSliderTemplate.matlabProperty,
+                                    rangeSlider.first.value,
+                                    rangeSlider.second.value,
+                                    rangeSliderTemplate.unit)
+                    }
+
+                    propertySaveRequested(rangeSliderTemplate.matlabProperty,
+                                           rangeSlider.first.value,
+                                           rangeSlider.second.value,
+                                           rangeSliderTemplate.unit)
                     propertyInput.focus = false
                     rangeSliderTemplate.sliderState = "default"
                 }
@@ -379,6 +391,9 @@ Item {
             MouseArea {
                 anchors.fill: parent
                 onClicked: {
+                    if (rangeSliderTemplate.matlabProperty && typeof matlabExecutor !== "undefined" && matlabExecutor.removeMatlabProperty) {
+                        matlabExecutor.removeMatlabProperty(rangeSliderTemplate.matlabProperty)
+                    }
                     deleteRequested()
                 }
             }

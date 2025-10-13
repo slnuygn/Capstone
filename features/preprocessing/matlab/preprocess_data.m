@@ -11,11 +11,8 @@ cfg.trialdef.eventvalue = {'S200' 'S201' 'S202'};           % read all condition
 cfg.trialdef.prestim    = 0.5; % in seconds
 cfg.trialdef.poststim   = 1.0; % in seconds
 
-
-
 cfg = ft_definetrial(cfg);
 cfg.channel = selected_channels;
-
 
 cfg.demean = 'yes';
 cfg.baselinewindow = [-0.2 0.0];
@@ -26,5 +23,4 @@ cfg.dftfreq = [50 60];
 prepped_data= ft_preprocessing(cfg);
 
 end
-
 

@@ -40,7 +40,7 @@ Item {
     signal deleteItem(string itemToDelete)
     signal multiSelectionChanged(var selected)
     signal deleteRequested()
-    signal propertySaveRequested(string propertyValue)
+    signal propertySaveRequested(string propertyValue, var selectedValues, bool useCellFormat)
 
     onMatlabPropertyChanged: {
         if (dropdownState !== "add") {
@@ -825,7 +825,7 @@ Item {
         x: (isMultiSelect ? multiSelectDisplay : singleSelectRow).x + (isMultiSelect ? multiSelectDisplay : singleSelectRow).width + 15
         y: (isMultiSelect ? multiSelectDisplay : singleSelectRow).y + (isMultiSelect ? multiSelectDisplay : singleSelectRow).height / 2 - height / 2
         spacing: 5
-    visible: dropdownState === "edit" || dropdownState === "add"
+        visible: dropdownState === "edit" || dropdownState === "add"
 
         // Save icon
         Rectangle {
@@ -848,7 +848,26 @@ Item {
                 onClicked: {
                     dropdownTemplate.matlabPropertyDraft = propertyInput.text
                     dropdownTemplate.matlabProperty = dropdownTemplate.matlabPropertyDraft
-                    propertySaveRequested(dropdownTemplate.matlabProperty)
+                    var selectionPayload
+                    if (dropdownTemplate.isMultiSelect) {
+                        selectionPayload = dropdownTemplate.selectedItems && dropdownTemplate.selectedItems.slice ? dropdownTemplate.selectedItems.slice(0) : (dropdownTemplate.selectedItems || [])
+                    } else {
+                        selectionPayload = []
+                        if (comboBox.currentText && comboBox.currentText.length > 0) {
+                            selectionPayload.push(comboBox.currentText)
+                        }
+                    }
+
+                    var needsCellFormat = dropdownTemplate.isMultiSelect && dropdownTemplate.maxSelections !== 1
+
+                    if (typeof matlabExecutor !== "undefined" && matlabExecutor.saveDropdownPropertyToMatlab) {
+                        matlabExecutor.saveDropdownPropertyToMatlab(
+                                    dropdownTemplate.matlabProperty,
+                                    selectionPayload,
+                                    needsCellFormat)
+                    }
+
+                    propertySaveRequested(dropdownTemplate.matlabProperty, selectionPayload, needsCellFormat)
                     propertyInput.focus = false
                     dropdownTemplate.dropdownState = "default"
                 }
@@ -873,6 +892,9 @@ Item {
             MouseArea {
                 anchors.fill: parent
                 onClicked: {
+                    if (dropdownTemplate.matlabProperty && typeof matlabExecutor !== "undefined" && matlabExecutor.removeMatlabProperty) {
+                        matlabExecutor.removeMatlabProperty(dropdownTemplate.matlabProperty)
+                    }
                     deleteRequested()
                 }
             }
