@@ -146,6 +146,9 @@ ApplicationWindow {
             if (preprocessingPageLoader.item) {
                 preprocessingPageLoader.item.setEditMode(checked)
             }
+            if (featureExtractionAnalysisPageLoader.item && featureExtractionAnalysisPageLoader.item.setEditMode) {
+                featureExtractionAnalysisPageLoader.item.setEditMode(checked)
+            }
         }
 
         onAddDropdownRequested: {
@@ -340,6 +343,15 @@ ApplicationWindow {
                 id: featureExtractionAnalysisPageLoader
                 anchors.fill: parent
                 source: "../features/analysis/ui/processing_page.qml"
+
+                onLoaded: {
+                    if (matlabExecutor && item && item.setErpLatencyRange) {
+                        var latencyWindow = matlabExecutor.getCurrentErpLatency()
+                        if (latencyWindow && latencyWindow.length >= 2) {
+                            item.setErpLatencyRange(latencyWindow[0], latencyWindow[1])
+                        }
+                    }
+                }
             }
         }
 

@@ -9,6 +9,7 @@ Item {
 
     property string displayText: "Analysis Module"
     property bool expanded: false
+    default property alias expandedContent: contentContainer.data
 
     MouseArea {
         anchors.fill: parent
@@ -52,7 +53,7 @@ Item {
         id: expandedRect
         visible: expanded
         width: parent.width - 10
-        height: 200
+        height: expanded ? Math.max(contentContainer.implicitHeight + 20, 120) : 0
         anchors.top: rectangle.bottom
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.topMargin: 1
@@ -61,11 +62,19 @@ Item {
         border.width: 1
         radius: 3
 
+        Column {
+            id: contentContainer
+            anchors.fill: parent
+            anchors.margins: 10
+            spacing: 10
+        }
+
         Text {
             text: "Expanded Content"
             anchors.centerIn: parent
             font.pixelSize: 18
             color: "#333"
+            visible: contentContainer.children.length === 0
         }
     }
 }

@@ -19,6 +19,64 @@ Item {
     property string sliderState: "default"  // "default", "edit", or "add"
     property string matlabPropertyDraft: matlabProperty
     property string sliderId: ""  // Identifier for the slider instance
+    property color backgroundColor: "#e0e0e0"
+
+    function calculateDecimalPlaces(step) {
+        if (step <= 0) {
+            return 3
+        }
+        var stepString = step.toString()
+        var scientificIndex = stepString.indexOf("e-")
+        if (scientificIndex !== -1) {
+            var exponentText = stepString.substring(scientificIndex + 2)
+            var exponentValue = parseInt(exponentText)
+            if (!isNaN(exponentValue)) {
+                return Math.min(6, Math.max(0, exponentValue))
+            }
+        }
+        var decimalIndex = stepString.indexOf('.')
+        if (decimalIndex !== -1) {
+            return Math.min(6, Math.max(0, stepString.length - decimalIndex - 1))
+        }
+        return 0
+    }
+
+    function formatValue(value) {
+        var precision = rangeSliderTemplate.decimalPlaces
+        if (precision < 0) {
+            precision = 0
+        } else if (precision > 6) {
+            precision = 6
+        }
+        var factor = Math.pow(10, precision)
+        var rounded = Math.round(Number(value) * factor) / factor
+        var fixedString = rounded.toFixed(precision)
+        if (precision > 0) {
+            fixedString = fixedString.replace(/(\.\d*?[1-9])0+$/, '$1')
+            fixedString = fixedString.replace(/\.0+$/, '')
+        }
+        if (fixedString === "-0") {
+            fixedString = "0"
+        }
+        return fixedString
+    }
+
+    property int decimalPlaces: calculateDecimalPlaces(stepSize)
+
+    onDecimalPlacesChanged: {
+        if (fromInput && !fromInput.activeFocus) {
+            fromInput.text = formatValue(from)
+        }
+        if (toInput && !toInput.activeFocus) {
+            toInput.text = formatValue(to)
+        }
+        if (firstValueInput && !firstValueInput.activeFocus) {
+            firstValueInput.text = formatValue(firstValue)
+        }
+        if (secondValueInput && !secondValueInput.activeFocus) {
+            secondValueInput.text = formatValue(secondValue)
+        }
+    }
 
     // Dynamic z-index management
     property int baseZ: 1000
@@ -31,6 +89,30 @@ Item {
     onMatlabPropertyChanged: {
         if (sliderState !== "add") {
             matlabPropertyDraft = matlabProperty
+        }
+    }
+
+    onFromChanged: {
+        if (fromInput && !fromInput.activeFocus) {
+            fromInput.text = formatValue(from)
+        }
+    }
+
+    onToChanged: {
+        if (toInput && !toInput.activeFocus) {
+            toInput.text = formatValue(to)
+        }
+    }
+
+    onFirstValueChanged: {
+        if (firstValueInput && !firstValueInput.activeFocus) {
+            firstValueInput.text = formatValue(firstValue)
+        }
+    }
+
+    onSecondValueChanged: {
+        if (secondValueInput && !secondValueInput.activeFocus) {
+            secondValueInput.text = formatValue(secondValue)
         }
     }
 
@@ -48,6 +130,13 @@ Item {
 
     // Signals
     signal rangeChanged(real firstValue, real secondValue)
+
+    function snapValue(value) {
+        if (rangeSlider && typeof rangeSlider.snapToStep === "function") {
+            return rangeSlider.snapToStep(value)
+        }
+        return value
+    }
     signal deleteRequested()
     signal propertySaveRequested(string propertyValue, real firstValue, real secondValue, string unit)
 
@@ -63,7 +152,7 @@ Item {
             Text {
                 id: propertyDisplay
                 visible: sliderState !== "add"
-                text: matlabProperty + " = [" + rangeSlider.first.value.toFixed(1) + unit + " " + rangeSlider.second.value.toFixed(1) + unit + "]"
+                text: matlabProperty + " = [" + rangeSliderTemplate.formatValue(rangeSlider.first.value) + unit + " " + rangeSliderTemplate.formatValue(rangeSlider.second.value) + unit + "]"
                 font.pixelSize: 12
                 color: "#666"
                 wrapMode: Text.Wrap
@@ -129,7 +218,7 @@ Item {
                 Text {
                     id: valuePreview
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "= [" + rangeSlider.first.value.toFixed(1) + unit + " " + rangeSlider.second.value.toFixed(1) + unit + "]"
+                    text: "= [" + rangeSliderTemplate.formatValue(rangeSlider.first.value) + unit + " " + rangeSliderTemplate.formatValue(rangeSlider.second.value) + unit + "]"
                     font.pixelSize: 12
                     color: "#666"
                     wrapMode: Text.NoWrap
@@ -147,6 +236,7 @@ Item {
             first.value: rangeSliderTemplate.firstValue
             second.value: rangeSliderTemplate.secondValue
             stepSize: rangeSliderTemplate.stepSize
+            snapMode: RangeSlider.SnapAlways
             enabled: rangeSliderTemplate.enabled
 
             background: Rectangle {
@@ -157,7 +247,7 @@ Item {
                 width: rangeSlider.availableWidth
                 height: implicitHeight
                 radius: 3
-                color: "#e0e0e0"
+                color: backgroundColor
 
                 // Active range
                 Rectangle {
@@ -193,12 +283,40 @@ Item {
                 visible: rangeSlider.enabled
             }
 
+            function snapToStep(value) {
+                var step = rangeSliderTemplate.stepSize > 0 ? rangeSliderTemplate.stepSize : 0.1
+                var snapped = Math.round((value - from) / step) * step + from
+                var precision = rangeSliderTemplate.decimalPlaces
+                var factor = Math.pow(10, precision)
+                return Math.round(snapped * factor) / factor
+            }
+
             first.onValueChanged: function() {
+                var snapped = snapToStep(first.value)
+                if (Math.abs(snapped - first.value) > 1e-6) {
+                    first.value = snapped
+                    return
+                }
+                rangeSliderTemplate.firstValue = snapped
+                if (firstValueInput && !firstValueInput.activeFocus) {
+                    firstValueInput.text = rangeSliderTemplate.formatValue(rangeSliderTemplate.firstValue)
+                }
                 rangeChanged(first.value, second.value)
+                updateQmlFile()
             }
 
             second.onValueChanged: function() {
+                var snapped = snapToStep(second.value)
+                if (Math.abs(snapped - second.value) > 1e-6) {
+                    second.value = snapped
+                    return
+                }
+                rangeSliderTemplate.secondValue = snapped
+                if (secondValueInput && !secondValueInput.activeFocus) {
+                    secondValueInput.text = rangeSliderTemplate.formatValue(rangeSliderTemplate.secondValue)
+                }
                 rangeChanged(first.value, second.value)
+                updateQmlFile()
             }
         }
 
@@ -231,7 +349,12 @@ Item {
                         radius: 3
                     }
                     onAccepted: updateFrom()
-                    Component.onCompleted: text = rangeSliderTemplate.from
+                    Component.onCompleted: text = rangeSliderTemplate.formatValue(rangeSliderTemplate.from)
+                    onActiveFocusChanged: {
+                        if (!activeFocus) {
+                            text = rangeSliderTemplate.formatValue(rangeSliderTemplate.from)
+                        }
+                    }
                 }
             }
 
@@ -257,7 +380,12 @@ Item {
                         radius: 3
                     }
                     onAccepted: updateTo()
-                    Component.onCompleted: text = rangeSliderTemplate.to
+                    Component.onCompleted: text = rangeSliderTemplate.formatValue(rangeSliderTemplate.to)
+                    onActiveFocusChanged: {
+                        if (!activeFocus) {
+                            text = rangeSliderTemplate.formatValue(rangeSliderTemplate.to)
+                        }
+                    }
                 }
             }
 
@@ -274,7 +402,6 @@ Item {
                 TextField {
                     id: firstValueInput
                     width: 80
-                    text: rangeSlider.first.value
                     font.pixelSize: 11
                     color: "#333"
                     background: Rectangle {
@@ -285,6 +412,12 @@ Item {
                     }
                     validator: DoubleValidator { bottom: rangeSliderTemplate.from; top: rangeSliderTemplate.to }
                     onAccepted: updateFirstValue()
+                    Component.onCompleted: text = rangeSliderTemplate.formatValue(rangeSliderTemplate.firstValue)
+                    onActiveFocusChanged: {
+                        if (!activeFocus) {
+                            text = rangeSliderTemplate.formatValue(rangeSliderTemplate.firstValue)
+                        }
+                    }
                 }
             }
 
@@ -301,7 +434,6 @@ Item {
                 TextField {
                     id: secondValueInput
                     width: 80
-                    text: rangeSlider.second.value
                     font.pixelSize: 11
                     color: "#333"
                     background: Rectangle {
@@ -312,6 +444,12 @@ Item {
                     }
                     validator: DoubleValidator { bottom: rangeSliderTemplate.from; top: rangeSliderTemplate.to }
                     onAccepted: updateSecondValue()
+                    Component.onCompleted: text = rangeSliderTemplate.formatValue(rangeSliderTemplate.secondValue)
+                    onActiveFocusChanged: {
+                        if (!activeFocus) {
+                            text = rangeSliderTemplate.formatValue(rangeSliderTemplate.secondValue)
+                        }
+                    }
                 }
             }
 
@@ -415,6 +553,7 @@ Item {
         // Adjust values if necessary
         if (firstValue < newFrom) firstValue = newFrom
         if (secondValue < newFrom) secondValue = newFrom
+        fromInput.text = formatValue(from)
         warningText.text = ""
         rangeChanged(firstValue, secondValue)
         updateQmlFile()
@@ -435,6 +574,7 @@ Item {
         // Adjust values if necessary
         if (firstValue > newTo) firstValue = newTo
         if (secondValue > newTo) secondValue = newTo
+        toInput.text = formatValue(to)
         warningText.text = ""
         rangeChanged(firstValue, secondValue)
         updateQmlFile()
@@ -455,7 +595,8 @@ Item {
             warningText.text = "First value must be less than second value"
             return
         }
-        firstValue = newFirst
+    firstValue = rangeSlider.snapToStep(newFirst)
+        firstValueInput.text = formatValue(firstValue)
         warningText.text = ""
         rangeChanged(firstValue, secondValue)
         updateQmlFile()
@@ -476,7 +617,8 @@ Item {
             warningText.text = "Second value must be greater than first value"
             return
         }
-        secondValue = newSecond
+    secondValue = rangeSlider.snapToStep(newSecond)
+        secondValueInput.text = formatValue(secondValue)
         warningText.text = ""
         rangeChanged(firstValue, secondValue)
         updateQmlFile()
@@ -491,6 +633,8 @@ Item {
             matlabExecutor.updateDftfreqSliderValues(from, to, firstValue, secondValue)
         } else if (sliderId === "prestimPoststimSlider") {
             matlabExecutor.updatePrestimPoststimSliderValues(from, to, firstValue, secondValue)
+        } else if (sliderId === "erpRangeSlider" && typeof matlabExecutor !== "undefined" && matlabExecutor.updateErpRangeSliderValues) {
+            matlabExecutor.updateErpRangeSliderValues(from, to, firstValue, secondValue)
         }
     }
 }

@@ -94,6 +94,13 @@ class MatlabExecutor(QObject):
             "ui",
             "preprocessing_page.qml",
         )
+        self._analysis_processing_qml_path = os.path.join(
+            self._project_root,
+            "features",
+            "analysis",
+            "ui",
+            "processing_page.qml",
+        )
 
     def _update_dropdown_state_in_qml(self, dropdown_id: str, new_state: str) -> bool:
         """Update the dropdownState property for a specific dropdown in the QML file."""
@@ -291,6 +298,19 @@ class MatlabExecutor(QObject):
                 return candidate
 
         print("Unable to resolve preprocess_data.m path.")
+        return None
+
+    def _get_decomp_timelock_script_path(self) -> Optional[str]:
+        """Return the absolute path to decomp_timelock_func.m if it exists."""
+        candidates = [
+            os.path.join(self._project_root, "features", "analysis", "matlab", "decomp_timelock_func.m"),
+        ]
+
+        for candidate in candidates:
+            if candidate and os.path.exists(candidate):
+                return candidate
+
+        print("Unable to resolve decomp_timelock_func.m path.")
         return None
 
     def _escape_matlab_single_quotes(self, value: str) -> str:
@@ -552,6 +572,36 @@ class MatlabExecutor(QObject):
             return [50, 60]  # default values
         except:
             return [50, 60]
+
+    @pyqtSlot(result="QVariant")
+    def getCurrentErpLatency(self):
+        """Read the current cfg.latency range from decomp_timelock_func.m."""
+        try:
+            script_path = self._get_decomp_timelock_script_path()
+            if not script_path:
+                return []
+
+            with open(script_path, 'r', encoding='utf-8') as file:
+                content = file.read()
+
+            pattern = r'cfg\.latency\s*=\s*\[([^\]]+)\];'
+            match = re.search(pattern, content)
+            if not match:
+                return []
+
+            values = match.group(1).split()
+            parsed = []
+            for value in values:
+                try:
+                    parsed.append(float(value))
+                except ValueError:
+                    continue
+
+            return parsed
+
+        except Exception as e:
+            print(f"Error reading cfg.latency range: {str(e)}")
+            return []
     
     @pyqtSlot(result=str)
     def getCurrentDataDirectory(self):
@@ -812,8 +862,8 @@ class MatlabExecutor(QObject):
             if not values_list:
                 info_msg = f"No values provided for {normalized_property}; skipping update."
                 print(info_msg)
-                if use_cell_format or len(values) > 1:
-                    cell_items = [f"'{self._escape_matlab_single_quotes(v.strip())}'" for v in values]
+                self.configSaved.emit(info_msg)
+                return False
 
             script_path = self._get_preprocess_data_script_path()
             if not script_path:
@@ -821,8 +871,6 @@ class MatlabExecutor(QObject):
                 print(error_msg)
                 self.configSaved.emit(error_msg)
                 return False
-                if self._is_numeric_like(normalized):
-                    return normalized
 
             with open(script_path, 'r', encoding='utf-8') as file:
                 content = file.read()
@@ -862,44 +910,75 @@ class MatlabExecutor(QObject):
             if not normalized_property.startswith("cfg."):
                 normalized_property = f"cfg.{normalized_property}"
 
-            script_path = self._get_preprocess_data_script_path()
-            if not script_path:
-                error_msg = "preprocess_data.m not found; cannot persist range slider property."
+            formatted_value = self._format_matlab_numeric_range(first_value, second_value)
+            unit_suffix = f" {unit}" if unit else ""
+
+            target_scripts = []
+            if normalized_property == "cfg.latency":
+                decomp_path = self._get_decomp_timelock_script_path()
+                if decomp_path:
+                    target_scripts.append(("decomp_timelock_func.m", decomp_path))
+                else:
+                    print("decomp_timelock_func.m not found; cannot persist cfg.latency.")
+            else:
+                preprocess_path = self._get_preprocess_data_script_path()
+                if preprocess_path:
+                    target_scripts.append(("preprocess_data.m", preprocess_path))
+                else:
+                    print("preprocess_data.m not found; cannot persist range slider property.")
+
+            if not target_scripts:
+                error_msg = f"No script targets available for {normalized_property}."
                 print(error_msg)
                 self.configSaved.emit(error_msg)
                 return False
 
-            with open(script_path, 'r', encoding='utf-8') as file:
-                content = file.read()
+            messages = []
+            any_changes = False
 
-            formatted_value = self._format_matlab_numeric_range(first_value, second_value)
-            replaced, new_content = self._replace_or_insert_matlab_assignment(content, normalized_property, formatted_value)
+            for display_name, script_path in target_scripts:
+                try:
+                    with open(script_path, 'r', encoding='utf-8') as file:
+                        content = file.read()
 
-            if new_content == content:
-                info_msg = f"No changes required for {normalized_property}."
-                print(info_msg)
-                self.configSaved.emit(info_msg)
-                return False
+                    replaced, new_content = self._replace_or_insert_matlab_assignment(
+                        content, normalized_property, formatted_value)
 
-            with open(script_path, 'w', encoding='utf-8') as file:
-                file.write(new_content)
+                    if new_content == content:
+                        info_msg = f"No changes required for {normalized_property} in {display_name}"
+                        print(info_msg)
+                        messages.append(info_msg)
+                        continue
 
-            status = "Updated" if replaced else "Inserted"
-            unit_suffix = f" {unit}" if unit else ""
-            success_msg = f"{status} {normalized_property} = {formatted_value}{unit_suffix} in preprocess_data.m"
-            print(success_msg)
-            self.configSaved.emit(success_msg)
-            return True
+                    with open(script_path, 'w', encoding='utf-8') as file:
+                        file.write(new_content)
+
+                    any_changes = True
+                    status = "Updated" if replaced else "Inserted"
+                    success_msg = f"{status} {normalized_property} = {formatted_value}{unit_suffix} in {display_name}"
+                    print(success_msg)
+                    messages.append(success_msg)
+                except Exception as inner_error:
+                    error_msg = f"Error updating {display_name} for {normalized_property}: {str(inner_error)}"
+                    print(error_msg)
+                    messages.append(error_msg)
+
+            if not messages:
+                messages.append(f"No script updates performed for {normalized_property}.")
+
+            summary = "; ".join(messages)
+            self.configSaved.emit(summary)
+            return any_changes
 
         except Exception as e:
-            error_msg = f"Error saving range slider {matlab_property} to preprocess_data.m: {str(e)}"
+            error_msg = f"Error saving range slider {matlab_property}: {str(e)}"
             print(error_msg)
             self.configSaved.emit(error_msg)
             return False
 
     @pyqtSlot(str, result=bool)
     def removeMatlabProperty(self, matlab_property):
-        """Remove a MATLAB assignment line for the given property from preprocess_data.m."""
+        """Remove a MATLAB assignment line for the given property from relevant scripts."""
         try:
             normalized_property = (matlab_property or "").strip()
             if not normalized_property:
@@ -908,34 +987,56 @@ class MatlabExecutor(QObject):
             if not normalized_property.startswith("cfg."):
                 normalized_property = f"cfg.{normalized_property}"
 
-            script_path = self._get_preprocess_data_script_path()
-            if not script_path:
-                error_msg = "preprocess_data.m not found; cannot remove property."
+            target_scripts = []
+            if normalized_property == "cfg.latency":
+                decomp_path = self._get_decomp_timelock_script_path()
+                if decomp_path:
+                    target_scripts.append(("decomp_timelock_func.m", decomp_path))
+            else:
+                preprocess_path = self._get_preprocess_data_script_path()
+                if preprocess_path:
+                    target_scripts.append(("preprocess_data.m", preprocess_path))
+
+            if not target_scripts:
+                error_msg = f"No script targets available to remove {normalized_property}."
                 print(error_msg)
                 self.configSaved.emit(error_msg)
                 return False
 
-            with open(script_path, 'r', encoding='utf-8') as file:
-                content = file.read()
+            messages = []
+            removed_any = False
 
-            removed, new_content = self._remove_matlab_assignment(content, normalized_property)
+            for display_name, script_path in target_scripts:
+                try:
+                    with open(script_path, 'r', encoding='utf-8') as file:
+                        content = file.read()
 
-            if not removed:
-                info_msg = f"No assignment found for {normalized_property} in preprocess_data.m"
-                print(info_msg)
-                self.configSaved.emit(info_msg)
-                return False
+                    removed, new_content = self._remove_matlab_assignment(content, normalized_property)
 
-            with open(script_path, 'w', encoding='utf-8') as file:
-                file.write(new_content)
+                    if not removed:
+                        info_msg = f"No assignment found for {normalized_property} in {display_name}"
+                        print(info_msg)
+                        messages.append(info_msg)
+                        continue
 
-            success_msg = f"Removed {normalized_property} assignment from preprocess_data.m"
-            print(success_msg)
-            self.configSaved.emit(success_msg)
-            return True
+                    with open(script_path, 'w', encoding='utf-8') as file:
+                        file.write(new_content)
+
+                    removed_any = True
+                    success_msg = f"Removed {normalized_property} assignment from {display_name}"
+                    print(success_msg)
+                    messages.append(success_msg)
+                except Exception as inner_error:
+                    error_msg = f"Error removing {normalized_property} from {display_name}: {str(inner_error)}"
+                    print(error_msg)
+                    messages.append(error_msg)
+
+            summary = "; ".join(messages) if messages else f"No updates performed for {normalized_property}."
+            self.configSaved.emit(summary)
+            return removed_any
 
         except Exception as e:
-            error_msg = f"Error removing {matlab_property} from preprocess_data.m: {str(e)}"
+            error_msg = f"Error removing {matlab_property}: {str(e)}"
             print(error_msg)
             self.configSaved.emit(error_msg)
             return False
@@ -2165,6 +2266,78 @@ browse_ICA('{mat_file_path.replace(chr(92), '/')}');
             
         except Exception as e:
             print(f"Error updating prestim/poststim slider values: {str(e)}")
+            return False
+
+    @pyqtSlot(float, float, float, float)
+    def updateErpRangeSliderValues(self, from_val, to_val, first_val, second_val):
+        """Update the ERP range slider values in the analysis processing QML file."""
+        try:
+            qml_file_path = self._analysis_processing_qml_path
+            if not os.path.exists(qml_file_path):
+                print("processing_page.qml not found; cannot persist ERP slider edits.")
+                return False
+
+            with open(qml_file_path, 'r', encoding='utf-8') as file:
+                content = file.read()
+
+            def format_val(value):
+                try:
+                    numeric = float(value)
+                    if abs(numeric - round(numeric)) < 1e-9:
+                        return str(int(round(numeric)))
+                    formatted = f"{numeric:.6f}".rstrip('0').rstrip('.')
+                    return formatted if formatted else "0"
+                except (ValueError, TypeError):
+                    return str(value)
+
+            from_str = format_val(from_val)
+            to_str = format_val(to_val)
+            first_str = format_val(first_val)
+            second_str = format_val(second_val)
+
+            content = re.sub(
+                r'(id:\s*erpRangeSlider[\s\S]*?from:\s*)(-?[\d\.]+)',
+                r'\g<1>' + from_str,
+                content,
+                count=1,
+                flags=re.DOTALL,
+            )
+            content = re.sub(
+                r'(id:\s*erpRangeSlider[\s\S]*?to:\s*)(-?[\d\.]+)',
+                r'\g<1>' + to_str,
+                content,
+                count=1,
+                flags=re.DOTALL,
+            )
+            content = re.sub(
+                r'(id:\s*erpRangeSlider[\s\S]*?firstValue:\s*)(-?[\d\.]+)',
+                r'\g<1>' + first_str,
+                content,
+                count=1,
+                flags=re.DOTALL,
+            )
+            content = re.sub(
+                r'(id:\s*erpRangeSlider[\s\S]*?secondValue:\s*)(-?[\d\.]+)',
+                r'\g<1>' + second_str,
+                content,
+                count=1,
+                flags=re.DOTALL,
+            )
+
+            with open(qml_file_path, 'w', encoding='utf-8') as file:
+                file.write(content)
+
+            print(
+                "Updated ERP range slider values: from=", from_str,
+                ", to=", to_str,
+                ", firstValue=", first_str,
+                ", secondValue=", second_str,
+                sep=""
+            )
+            return True
+
+        except Exception as e:
+            print(f"Error updating ERP range slider values: {str(e)}")
             return False
 
     @pyqtSlot(float, float, float, float)
