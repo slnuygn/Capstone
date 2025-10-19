@@ -345,11 +345,25 @@ ApplicationWindow {
                 source: "../features/analysis/ui/processing_page.qml"
 
                 onLoaded: {
+                    console.log("Processing page loaded successfully")
                     if (matlabExecutor && item && item.setErpLatencyRange) {
                         var latencyWindow = matlabExecutor.getCurrentErpLatency()
                         if (latencyWindow && latencyWindow.length >= 2) {
                             item.setErpLatencyRange(latencyWindow[0], latencyWindow[1])
                         }
+                    }
+                }
+
+                onStatusChanged: {
+                    if (status === Loader.Error) {
+                        console.log("Error loading processing_page.qml:", source)
+                        for (var i = 0; i < errors.length; i++) {
+                            console.log("QML Error:", errors[i].toString())
+                        }
+                    } else if (status === Loader.Ready) {
+                        console.log("Processing page ready")
+                    } else if (status === Loader.Loading) {
+                        console.log("Loading processing page...")
                     }
                 }
             }

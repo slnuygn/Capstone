@@ -3,7 +3,7 @@ addpath('C:/FIELDTRIP');  % Replace with your FieldTrip path
 ft_defaults;
 
 % Set the directory containing the .set files
-data_dir = 'file:///C:/Users/mamam/Desktop/data';  % Will be updated by the GUI file browser when folder is selected
+data_dir = 'C:/Users/mamam/Desktop/data';  % Will be updated by the GUI file browser when folder is selected
 
 % Get the preprocessing script directory and add to path
 preprocessing_dir = fileparts(mfilename('fullpath'));
@@ -31,13 +31,18 @@ end
 
 fprintf('Batch processing complete. %d files processed and stored in workspace variable "data"\n', length(data));
 
+% Save the preprocessed data prior to ICA for reproducibility
+raw_output_filename = fullfile(data_dir, 'data.mat');
+save(raw_output_filename, 'data', '-v7.3');
+fprintf('Preprocessed data saved to: %s\n', raw_output_filename);
+
 % Apply ICA to the preprocessed data
 fprintf('Applying ICA to preprocessed data...\n');
 data_ICApplied = applyICA(data);
 fprintf('ICA processing complete.\n');
 
 % Save the final ICA-processed data
-output_filename = fullfile(data_dir, 'data_ICA.mat');
-save(output_filename, 'data_ICApplied');
-fprintf('Final ICA-processed data saved to: %s\n', output_filename);
+ica_output_filename = fullfile(data_dir, 'data_ICApplied.mat');
+save(ica_output_filename, 'data_ICApplied', '-v7.3');
+fprintf('Final ICA-processed data saved to: %s\n', ica_output_filename);
 

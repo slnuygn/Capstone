@@ -23,38 +23,67 @@ class MatlabWorkerThread(QThread):
     """Worker thread for running MATLAB commands in the background"""
     finished = pyqtSignal(dict)  # Emits result dictionary
     
-    def __init__(self, matlab_path, preprocessing_dir):
+    def __init__(self, matlab_path, script_dir, show_console=False):
         super().__init__()
         self.matlab_path = matlab_path
-        self.preprocessing_dir = preprocessing_dir
+        self.script_dir = script_dir
+        self.show_console = show_console
         
     def run(self):
         """Run MATLAB preprocessing in background thread"""
         try:
-            # Run MATLAB with the preprocessing script
-            cmd = [
-                self.matlab_path, 
-                '-batch', 
-                f"cd('{self.preprocessing_dir.replace(chr(92), '/')}'); preprocessing"
-            ]
+            script_dir_unix = self.script_dir.replace(chr(92), '/')
+
+            if self.show_console:
+                command_string = (
+                    f"try, cd('{script_dir_unix}'); preprocessing; "
+                    "catch e, disp(getReport(e)); end; exit"
+                )
+                cmd = [
+                    self.matlab_path,
+                    '-desktop',
+                    '-r',
+                    command_string,
+                ]
+            else:
+                cmd = [
+                    self.matlab_path,
+                    '-batch',
+                    f"cd('{script_dir_unix}'); preprocessing"
+                ]
             
             print(f"Running MATLAB command in background: {' '.join(cmd)}")
             
-            # Run the command in the background
-            result = subprocess.run(
-                cmd,
-                capture_output=True, 
-                text=True, 
-                timeout=600,  # 10 minute timeout (increased from 5)
-                cwd=self.preprocessing_dir,
-                creationflags=subprocess.CREATE_NO_WINDOW
-            )
+            creation_flags = 0
+            if hasattr(subprocess, 'CREATE_NO_WINDOW'):
+                creation_flags = subprocess.CREATE_NO_WINDOW
+
+            stdout = None
+            stderr = None
+            if self.show_console:
+                result = subprocess.run(
+                    cmd,
+                    timeout=600,
+                    cwd=self.script_dir,
+                    creationflags=creation_flags if creation_flags else 0
+                )
+            else:
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=600,
+                    cwd=self.script_dir,
+                    creationflags=creation_flags if creation_flags else 0
+                )
+                stdout = result.stdout
+                stderr = result.stderr
             
             # Emit the result
             self.finished.emit({
                 'returncode': result.returncode,
-                'stdout': result.stdout,
-                'stderr': result.stderr
+                'stdout': stdout,
+                'stderr': stderr
             })
             
         except subprocess.TimeoutExpired:
@@ -287,14 +316,14 @@ class MatlabExecutor(QObject):
         return updated_content, True
 
     def _get_preprocess_data_script_path(self) -> Optional[str]:
-        """Return the absolute path to preprocess_data.m, trying known locations."""
+        """Return the absolute path to preprocess_data.m, preferring the source tree."""
         candidates = [
-            resource_path("preprocessing/preprocess_data.m"),
             os.path.join(self._project_root, "features", "preprocessing", "matlab", "preprocess_data.m"),
+            resource_path("preprocessing/preprocess_data.m"),
         ]
 
         for candidate in candidates:
-            if candidate and os.path.exists(candidate):
+            if candidate and os.path.isfile(candidate):
                 return candidate
 
         print("Unable to resolve preprocess_data.m path.")
@@ -413,8 +442,11 @@ class MatlabExecutor(QObject):
     def getCurrentPrestim(self):
         """Read the current prestim value from preprocess_data.m"""
         try:
-            script_path = resource_path("preprocessing/preprocess_data.m")
-            with open(script_path, 'r') as file:
+            script_path = self._get_preprocess_data_script_path()
+            if not script_path:
+                return 0.5
+
+            with open(script_path, 'r', encoding='utf-8') as file:
                 content = file.read()
             
             pattern = r'cfg\.trialdef\.prestim\s*=\s*([\d.]+);'
@@ -429,8 +461,11 @@ class MatlabExecutor(QObject):
     def getCurrentPoststim(self):
         """Read the current poststim value from preprocess_data.m"""
         try:
-            script_path = resource_path("preprocessing/preprocess_data.m")
-            with open(script_path, 'r') as file:
+            script_path = self._get_preprocess_data_script_path()
+            if not script_path:
+                return 1.0
+
+            with open(script_path, 'r', encoding='utf-8') as file:
                 content = file.read()
             
             pattern = r'cfg\.trialdef\.poststim\s*=\s*([\d.]+);'
@@ -445,8 +480,11 @@ class MatlabExecutor(QObject):
     def getCurrentTrialfun(self):
         """Read the current trialfun value from preprocess_data.m"""
         try:
-            script_path = resource_path("preprocessing/preprocess_data.m")
-            with open(script_path, 'r') as file:
+            script_path = self._get_preprocess_data_script_path()
+            if not script_path:
+                return "ft_trialfun_general"
+
+            with open(script_path, 'r', encoding='utf-8') as file:
                 content = file.read()
             
             pattern = r'cfg\.trialfun\s*=\s*\'([^\']+)\';'
@@ -461,8 +499,11 @@ class MatlabExecutor(QObject):
     def getCurrentEventtype(self):
         """Read the current eventtype value from preprocess_data.m"""
         try:
-            script_path = resource_path("preprocessing/preprocess_data.m")
-            with open(script_path, 'r') as file:
+            script_path = self._get_preprocess_data_script_path()
+            if not script_path:
+                return "Stimulus"
+
+            with open(script_path, 'r', encoding='utf-8') as file:
                 content = file.read()
             
             pattern = r'cfg\.trialdef\.eventtype\s*=\s*\'([^\']+)\';'
@@ -477,8 +518,11 @@ class MatlabExecutor(QObject):
     def getCurrentEventvalue(self):
         """Read the current eventvalue array from preprocess_data.m"""
         try:
-            script_path = resource_path("preprocessing/preprocess_data.m")
-            with open(script_path, 'r') as file:
+            script_path = self._get_preprocess_data_script_path()
+            if not script_path:
+                return ["S200", "S201", "S202"]
+
+            with open(script_path, 'r', encoding='utf-8') as file:
                 content = file.read()
             
             pattern = r'cfg\.trialdef\.eventvalue\s*=\s*\{([^}]+)\};'
@@ -497,8 +541,11 @@ class MatlabExecutor(QObject):
     def getCurrentDemean(self):
         """Read the current demean setting from preprocess_data.m"""
         try:
-            script_path = resource_path("preprocessing/preprocess_data.m")
-            with open(script_path, 'r') as file:
+            script_path = self._get_preprocess_data_script_path()
+            if not script_path:
+                return True
+
+            with open(script_path, 'r', encoding='utf-8') as file:
                 content = file.read()
             
             pattern = r'cfg\.demean\s*=\s*\'([^\']+)\';'
@@ -513,8 +560,11 @@ class MatlabExecutor(QObject):
     def getCurrentBaselineWindow(self):
         """Read the current baseline window from preprocess_data.m (including commented lines)"""
         try:
-            script_path = resource_path("preprocessing/preprocess_data.m")
-            with open(script_path, 'r') as file:
+            script_path = self._get_preprocess_data_script_path()
+            if not script_path:
+                return [-0.2, 0]
+
+            with open(script_path, 'r', encoding='utf-8') as file:
                 content = file.read()
             
             # First try to find uncommented baseline window
@@ -543,8 +593,11 @@ class MatlabExecutor(QObject):
     def getCurrentDftfilter(self):
         """Read the current dftfilter setting from preprocess_data.m"""
         try:
-            script_path = resource_path("preprocessing/preprocess_data.m")
-            with open(script_path, 'r') as file:
+            script_path = self._get_preprocess_data_script_path()
+            if not script_path:
+                return True
+
+            with open(script_path, 'r', encoding='utf-8') as file:
                 content = file.read()
             
             pattern = r'cfg\.dftfilter\s*=\s*\'([^\']+)\';'
@@ -559,8 +612,11 @@ class MatlabExecutor(QObject):
     def getCurrentDftfreq(self):
         """Read the current dftfreq from preprocess_data.m"""
         try:
-            script_path = resource_path("preprocessing/preprocess_data.m")
-            with open(script_path, 'r') as file:
+            script_path = self._get_preprocess_data_script_path()
+            if not script_path:
+                return [50, 60]
+
+            with open(script_path, 'r', encoding='utf-8') as file:
                 content = file.read()
             
             pattern = r'cfg\.dftfreq\s*=\s*\[([^\]]+)\];'
@@ -731,10 +787,12 @@ class MatlabExecutor(QObject):
     def saveConfiguration(self, prestim_value, poststim_value, trialfun_value, eventtype_value, selected_channels, eventvalue_list, demean_enabled, baseline_start, baseline_end, dftfilter_enabled, dftfreq_start, dftfreq_end):
         """Save prestim, poststim, trialfun, eventtype, eventvalue, demean, baseline window, dftfilter, dftfreq, and selected channels to the MATLAB script"""
         try:
-            script_path = resource_path("preprocessing/preprocess_data.m")
+            script_path = self._get_preprocess_data_script_path()
+            if not script_path:
+                raise FileNotFoundError("preprocess_data.m not found")
             
             # Read the current file
-            with open(script_path, 'r') as file:
+            with open(script_path, 'r', encoding='utf-8') as file:
                 content = file.read()
             
             # Replace the prestim line
@@ -814,7 +872,7 @@ class MatlabExecutor(QObject):
                 content = re.sub(dftfreq_pattern, dftfreq_replacement, content)
             
             # Write the updated content back to the file
-            with open(script_path, 'w') as file:
+            with open(script_path, 'w', encoding='utf-8') as file:
                 file.write(content)
             
             # Also update the preprocessing.m file with selected channels
@@ -1141,7 +1199,7 @@ class MatlabExecutor(QObject):
             self.configSaved.emit("Configuration saved! Starting MATLAB processing...\nProcessing data files in background.\nThe application will remain responsive during processing.")
             
             # Create and start worker thread
-            self._worker_thread = MatlabWorkerThread(matlab_path, preprocessing_dir)
+            self._worker_thread = MatlabWorkerThread(matlab_path, matlab_scripts_dir, show_console=True)
             self._worker_thread.finished.connect(self._onMatlabFinished)
             self._worker_thread.start()
             
@@ -1156,7 +1214,8 @@ class MatlabExecutor(QObject):
         """Handle completion of MATLAB processing"""
         try:
             print(f"MATLAB execution completed with return code: {result['returncode']}")
-            print(f"STDOUT: {result['stdout']}")
+            if result['stdout']:
+                print(f"STDOUT: {result['stdout']}")
             if result['stderr']:
                 print(f"STDERR: {result['stderr']}")
             
@@ -1358,6 +1417,105 @@ class MatlabExecutor(QObject):
             return f"MATLAB not found at: {matlab_path}\nPlease verify the path is correct."
         except Exception as e:
             return f"Error executing MATLAB script: {str(e)}"
+    
+    @pyqtSlot(str, result=str)
+    def runMatlabScript(self, command):
+        """Execute a MATLAB command string and return the output"""
+        return self.runMatlabScriptInteractive(command, False)
+    
+    @pyqtSlot(str, bool, result=str)
+    def runMatlabScriptInteractive(self, command, interactive=False):
+        """Execute a MATLAB command string and return the output. If interactive=True, opens MATLAB GUI."""
+        try:
+            print(f"Executing MATLAB command: {command}")
+            print(f"Interactive mode: {interactive}")
+            
+            # Use your specific MATLAB installation path
+            matlab_path = r"C:\Program Files\MATLAB\R2023a\bin\matlab.exe"
+            
+            # Get project root and matlab function paths
+            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            matlab_analysis_path = os.path.join(project_root, "features", "analysis", "matlab")
+            matlab_preprocessing_path = os.path.join(project_root, "features", "preprocessing", "matlab")
+            
+            # Build MATLAB path command to add function directories
+            path_cmd = f"addpath('{matlab_analysis_path}'); addpath('{matlab_preprocessing_path}'); "
+            
+            # Combine path setup with the user's command
+            full_command = path_cmd + command
+            
+            if interactive:
+                # Run MATLAB in interactive mode (opens GUI)
+                cmd = [
+                    matlab_path, 
+                    '-r', 
+                    full_command
+                ]
+                print(f"Running interactive command: {' '.join(cmd)}")
+                
+                # For interactive mode, we don't capture output since MATLAB GUI will show it
+                result = subprocess.run(
+                    cmd,
+                    cwd=project_root,
+                    creationflags=subprocess.CREATE_NO_WINDOW
+                )
+                
+                if result.returncode == 0:
+                    return "MATLAB opened successfully in interactive mode. Check the MATLAB console for output."
+                else:
+                    return f"MATLAB interactive mode failed with return code {result.returncode}"
+            else:
+                # Run MATLAB in batch mode
+                cmd = [
+                    matlab_path, 
+                    '-batch', 
+                    full_command
+                ]
+                
+                print(f"Running batch command: {' '.join(cmd)}")
+                print(f"Working directory: {project_root}")
+                
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True, 
+                    text=True, 
+                    timeout=120,  # 2 minute timeout for analysis operations
+                    cwd=project_root,  # Set working directory to project root
+                    creationflags=subprocess.CREATE_NO_WINDOW
+                )
+                
+                print(f"Return code: {result.returncode}")
+                print(f"STDOUT length: {len(result.stdout)}")
+                print(f"STDERR length: {len(result.stderr)}")
+                
+                if result.returncode == 0:
+                    # Process the output
+                    output = result.stdout.strip()
+                    if output:
+                        # Remove MATLAB licensing and startup info
+                        lines = output.split('\n')
+                        clean_lines = []
+                        for line in lines:
+                            line = line.strip()
+                            if line and not any(skip in line.lower() for skip in [
+                                'matlab', 'copyright', 'license', 'mathworks', 'version', 'release'
+                            ]):
+                                clean_lines.append(line)
+                        
+                        final_output = '\n'.join(clean_lines) if clean_lines else "Command executed successfully"
+                        return f"MATLAB Output:\n{final_output}"
+                    else:
+                        return "MATLAB Output:\nCommand executed successfully (no output)"
+                else:
+                    error_output = result.stderr.strip()
+                    return f"MATLAB Error (return code {result.returncode}):\n{error_output}"
+                    
+        except subprocess.TimeoutExpired:
+            return "MATLAB execution timed out (>120 seconds)"
+        except FileNotFoundError:
+            return f"MATLAB not found at: {matlab_path}\nPlease verify the path is correct."
+        except Exception as e:
+            return f"Error executing MATLAB command: {str(e)}"
     
     @pyqtSlot(result=list)
     def getCurrentChannels(self):
@@ -1608,9 +1766,34 @@ class MatlabExecutor(QObject):
                     return
                     
             except Exception as e:
-                print(f"Error reading file: {e}")
-                self.configSaved.emit(f"Error reading .mat file: {str(e)}")
-                return
+                error_message = str(e)
+                print(f"Primary loader failed: {error_message}")
+                if "Please use HDF reader" in error_message or "matlab v7.3" in error_message.lower():
+                    try:
+                        import h5py
+                        print("Falling back to h5py for v7.3 file inspection...")
+                        with h5py.File(mat_file_path, 'r') as h5_file:
+                            data_vars = list(h5_file.keys())
+                            print(f"HDF5 datasets in file: {data_vars}")
+                        if not data_vars:
+                            self.configSaved.emit("Error: No datasets found in the v7.3 .mat file")
+                            return
+                    except ImportError:
+                        msg = (
+                            "Unable to read MATLAB v7.3 file because h5py is not installed. "
+                            "Please install h5py to browse ICA files saved in v7.3 format."
+                        )
+                        print(msg)
+                        self.configSaved.emit(msg)
+                        return
+                    except Exception as h5_error:
+                        msg = f"Error reading v7.3 .mat file with h5py: {h5_error}"
+                        print(msg)
+                        self.configSaved.emit(msg)
+                        return
+                else:
+                    self.configSaved.emit(f"Error reading .mat file: {error_message}")
+                    return
             
             # Get paths
             preprocessing_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "features", "preprocessing")

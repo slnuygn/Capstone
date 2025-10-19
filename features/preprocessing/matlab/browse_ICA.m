@@ -5,7 +5,7 @@ function browse_ICA(mat_file_path)
 set(groot, 'DefaultFigureColormap', jet);
 
 try
-    % Load the .mat file
+    % Load the .mat file containing the ICA results
     fprintf('Loading file: %s\n', mat_file_path);
     loaded_data = load(mat_file_path);
     
@@ -13,9 +13,37 @@ try
     var_names = fieldnames(loaded_data);
     fprintf('Variables in file: %s\n', strjoin(var_names, ', '));
     
-    % Try to find ICA data variable automatically
+    % Determine folder for associated data.mat
+    [mat_folder, ~, ~] = fileparts(mat_file_path);
+    raw_data_path = fullfile(mat_folder, 'data.mat');
+    
+    % Try to find ICA data variable automatically (prioritize data_ICApplied)
     ICA_data = [];
     var_used = '';
+    if isfield(loaded_data, 'data_ICApplied')
+        ICA_data = loaded_data.data_ICApplied;
+        var_used = 'data_ICApplied';
+        fprintf('Found ICA data in variable: %s\n', var_used);
+    end
+    
+    raw_data = [];
+    raw_var_used = '';
+    if exist(raw_data_path, 'file')
+        try
+            raw_struct = load(raw_data_path, 'data');
+            if isfield(raw_struct, 'data')
+                raw_data = raw_struct.data;
+                raw_var_used = 'data';
+                fprintf('Loaded sensor-space data from %s (variable: %s)\n', raw_data_path, raw_var_used);
+            else
+                fprintf('Warning: %s does not contain variable "data".\n', raw_data_path);
+            end
+        catch rawLoadErr
+            fprintf('Warning: Failed to load %s (%s).\n', raw_data_path, rawLoadErr.message);
+        end
+    else
+        fprintf('Warning: data.mat not found in %s. Falling back to reconstructing raw data if needed.\n', mat_folder);
+    end
     
     % Get all non-metadata variable names
     var_names = fieldnames(loaded_data);
@@ -28,7 +56,7 @@ try
     
     fprintf('Searching for ICA data in %d variables...\n', length(data_vars));
     
-    % Look for variables that contain ICA data structures
+    % Look for variables that contain ICA data structures (only if not already resolved)
     for i = 1:length(data_vars)
         var_name = data_vars{i};
         var_data = loaded_data.(var_name);
@@ -36,11 +64,16 @@ try
         fprintf('Checking variable: %s\n', var_name);
         
         % Check if this variable looks like ICA data
-        if isICAData(var_data)
+        if isempty(ICA_data) && isICAData(var_data)
             ICA_data = var_data;
             var_used = var_name;
             fprintf('Found ICA data in variable: %s\n', var_name);
-            break;
+        end
+        
+        if isempty(raw_data) && isRawData(var_data)
+            raw_data = var_data;
+            raw_var_used = var_name;
+            fprintf('Found sensor-space data in variable: %s\n', var_name);
         end
     end
     
@@ -50,6 +83,9 @@ try
     
     fprintf('Using variable: %s\n', var_used);
     fprintf('Data contains %d subject(s)\n', length(ICA_data));
+    if ~isempty(raw_data)
+        fprintf('Raw data variable detected: %s\n', raw_var_used);
+    end
     
     % Initialize rejected ICs array - zeros array with same size as ICA_data
     rejected_ICs_array = cell(length(ICA_data), 1);
@@ -123,77 +159,18 @@ try
         end
     end
     
-    % Save results to workspace
-    assignin('base', 'rejected_ICs_array', rejected_ICs_array);
-    fprintf('\nRejected components array saved to workspace as "rejected_ICs_array"\n');
-    
-    % Save results to a script file
-    timestamp = datestr(now, 'yyyy-mm-dd_HH-MM-SS');
-    script_filename = sprintf('rejected_ICs_%s.m', timestamp);
-    
-    script_directory = fileparts(mfilename('fullpath'));
-    if isempty(script_directory)
-        script_directory = pwd;
-    end
-    rejected_folder_name = 'rejected ICs';
-    rejected_folder_path = fullfile(script_directory, rejected_folder_name);
-    if exist(rejected_folder_path, 'dir') ~= 7
-        mkdir_status = mkdir(rejected_folder_path);
-        if mkdir_status
-            fprintf('Created folder for rejected ICs: %s\n', rejected_folder_path);
-        else
-            fprintf('Warning: Could not create folder %s. Using script directory instead.\n', rejected_folder_path);
-            rejected_folder_path = script_directory;
-        end
-    end
-    script_fullpath = fullfile(rejected_folder_path, script_filename);
-    
-    fid = fopen(script_fullpath, 'w');
-    if fid ~= -1
-        % Write header
-        fprintf(fid, '%% Rejected ICA Components Results\n');
-        fprintf(fid, '%% Generated on: %s\n', datestr(now));
-        fprintf(fid, '%% Source file: %s\n', mat_file_path);
-        fprintf(fid, '%% Total subjects: %d\n\n', length(rejected_ICs_array));
-        
-        % Write the array
-        fprintf(fid, 'rejected_ICs_array = {\n');
-        for i = 1:length(rejected_ICs_array)
-            if isempty(rejected_ICs_array{i})
-                fprintf(fid, '    []; %% Subject %d: No rejected components\n', i);
-            else
-                fprintf(fid, '    [%s]; %% Subject %d: Rejected components\n', num2str(rejected_ICs_array{i}), i);
-            end
-        end
-        fprintf(fid, '};\n\n');
-        
-        % Write summary comments
-        total_subjects_with_rejections = sum(~cellfun(@isempty, rejected_ICs_array));
-        total_rejections = sum(cellfun(@length, rejected_ICs_array));
-        
-        fprintf(fid, '%% Summary:\n');
-        fprintf(fid, '%% Total subjects: %d\n', length(rejected_ICs_array));
-        fprintf(fid, '%% Subjects with rejections: %d\n', total_subjects_with_rejections);
-        fprintf(fid, '%% Total components rejected: %d\n', total_rejections);
-        
-        fclose(fid);
-        fprintf('Results saved to script file: %s\n', script_fullpath);
-    else
-        fprintf('Warning: Could not create script file %s\n', script_fullpath);
-    end
-    
     try
         fprintf('\nApplying reject_components to produce cleaned data...\n');
-        sensor_space_data = reconstruct_sensor_data(ICA_data);
-        ICApplied = arrayfun(@(idx) ICA_data(idx), 1:length(ICA_data), 'UniformOutput', false);
+        sensor_space_data = derive_sensor_space_data(raw_data, ICA_data);
+        ICApplied = ICA_data;
         clean_data = reject_components(sensor_space_data, ICApplied, rejected_ICs_array);
         assignin('base', 'clean_data', clean_data);
         fprintf('Cleaned data assigned to workspace as "clean_data".\n');
-        [mat_folder, mat_basename, ~] = fileparts(mat_file_path);
-        clean_filename = sprintf('%s_clean.mat', mat_basename);
+        clean_filename = 'data_ICApplied_clean.mat';
         clean_fullpath = fullfile(mat_folder, clean_filename);
-        save(clean_fullpath, 'clean_data', 'rejected_ICs_array', 'script_fullpath');
+        save(clean_fullpath, 'clean_data');
         fprintf('Cleaned data saved to %s\n', clean_fullpath);
+        fprintf('Rejected component indices stored inside each clean_data entry (field "rejected_components").\n');
     catch rejectionME
         fprintf('Warning: Failed to apply reject_components within browse_ICA (%s).\n', rejectionME.message);
     end
@@ -252,6 +229,75 @@ end
         end
     end
 
+    function is_raw = isRawData(candidate)
+        % Identify FieldTrip-like sensor-space data structures
+        is_raw = false;
+        if isempty(candidate)
+            return;
+        end
+        [first_entry, entry_count] = extract_first_struct(candidate);
+        if isempty(first_entry) || entry_count == 0
+            return;
+        end
+        
+        required_fields = {'label', 'trial', 'time'};
+        for fIdx = 1:numel(required_fields)
+            if ~isfield(first_entry, required_fields{fIdx})
+                return;
+            end
+        end
+        is_raw = true;
+    end
+
+    function [first_entry, entry_count] = extract_first_struct(candidate)
+        % Get the first struct from a cell/struct container and the total count
+        first_entry = [];
+        entry_count = 0;
+        if iscell(candidate)
+            entry_count = numel(candidate);
+            for cellIdx = 1:entry_count
+                if isstruct(candidate{cellIdx})
+                    first_entry = candidate{cellIdx};
+                    break;
+                end
+            end
+        elseif isstruct(candidate)
+            entry_count = numel(candidate);
+            if entry_count > 0
+                first_entry = candidate(1);
+            end
+        end
+    end
+
+    function data = derive_sensor_space_data(raw_candidate, ICA_struct)
+        % Decide whether to use existing raw data or reconstruct from ICA
+        expected_subjects = numel(ICA_struct);
+        if isempty(raw_candidate)
+            data = reconstruct_sensor_data(ICA_struct);
+            return;
+        end
+        
+        data = raw_candidate;
+        subject_count = count_entries(data);
+        if subject_count ~= expected_subjects
+            fprintf('Raw data subject count (%d) does not match ICA data (%d). Reconstructing sensor-space data.\n', ...
+                subject_count, expected_subjects);
+            data = reconstruct_sensor_data(ICA_struct);
+            return;
+        end
+        if ~isempty(raw_var_used)
+            fprintf('Using sensor-space data from variable: %s\n', raw_var_used);
+        end
+    end
+
+    function count = count_entries(container)
+        if iscell(container) || isstruct(container)
+            count = numel(container);
+        else
+            count = 0;
+        end
+    end
+
     function data = reconstruct_sensor_data(ICA_struct)
         % Rebuild sensor-space data from ICA components to enable rejection
         num_subjects = numel(ICA_struct);
@@ -266,7 +312,59 @@ end
             for trialIdx = 1:numel(comp.trial)
                 raw.trial{trialIdx} = comp.topo * comp.trial{trialIdx};
             end
+            raw.sampleinfo = extract_metadata_field(comp, 'sampleinfo');
+            raw.trialinfo = extract_metadata_field(comp, 'trialinfo');
+            raw.hdr = extract_metadata_field(comp, 'hdr');
+            raw.cfg = extract_metadata_field(comp, 'cfg');
+            if isempty(raw.cfg) && isfield(comp, 'cfg')
+                raw.cfg = comp.cfg;
+            end
             data{subjIdx} = raw;
+        end
+    end
+
+    function value = extract_metadata_field(comp_struct, field_name)
+        % Attempt to retrieve metadata fields from component structure chains
+        value = [];
+        if nargin < 2 || ~isstruct(comp_struct)
+            return;
+        end
+        max_depth = 10;
+        queue = {comp_struct};
+        depths = 0;
+        visited = cell(0, 1);
+        while ~isempty(queue)
+            current = queue{1};
+            queue(1) = [];
+            current_depth = depths(1);
+            depths(1) = [];
+            if isempty(current) || ~isstruct(current)
+                continue;
+            end
+            if any(cellfun(@(s) isequal(s, current), visited))
+                continue;
+            end
+            visited{end+1, 1} = current; %#ok<AGROW>
+            if isfield(current, field_name) && ~isempty(current.(field_name))
+                value = current.(field_name);
+                return;
+            end
+            if current_depth >= max_depth
+                continue;
+            end
+            next_depth = current_depth + 1;
+            if isfield(current, 'previous') && isstruct(current.previous)
+                queue{end+1} = current.previous; %#ok<AGROW>
+                depths(end+1) = next_depth; %#ok<AGROW>
+            end
+            if isfield(current, 'raw') && isstruct(current.raw)
+                queue{end+1} = current.raw; %#ok<AGROW>
+                depths(end+1) = next_depth; %#ok<AGROW>
+            end
+            if isfield(current, 'cfg') && ~strcmp(field_name, 'cfg') && isstruct(current.cfg)
+                queue{end+1} = current.cfg; %#ok<AGROW>
+                depths(end+1) = next_depth; %#ok<AGROW>
+            end
         end
     end
 

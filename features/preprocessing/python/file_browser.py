@@ -1,5 +1,5 @@
 import os
-from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, QStandardPaths
+from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, pyqtProperty, QStandardPaths
 
 
 class FileBrowser(QObject):
@@ -18,6 +18,26 @@ class FileBrowser(QObject):
         self._folder_contents = []
         self._ram_contents = []
     
+    @pyqtProperty(str, notify=currentFolderChanged)
+    def currentFolder(self):
+        return self._current_folder
+    
+    @currentFolder.setter
+    def currentFolder(self, value):
+        if self._current_folder != value:
+            self._current_folder = value
+            self.currentFolderChanged.emit(value)
+    
+    @pyqtProperty(list, notify=folderContentsChanged)
+    def folderContents(self):
+        return self._folder_contents
+    
+    @folderContents.setter
+    def folderContents(self, value):
+        if self._folder_contents != value:
+            self._folder_contents = value
+            self.folderContentsChanged.emit(value)
+    
     @pyqtSlot(str)
     def initializeWithPath(self, initial_path):
         """Initialize the file browser with a path from the MATLAB script"""
@@ -27,8 +47,7 @@ class FileBrowser(QObject):
     @pyqtSlot()
     def clearFolder(self):
         """Clear the current folder selection"""
-        self._current_folder = ""
-        self.currentFolderChanged.emit("")
+        self.currentFolder = ""  # Use property setter
         self._folder_contents = []
         self.folderContentsChanged.emit([])
     
@@ -51,8 +70,7 @@ class FileBrowser(QObject):
             # Clean up any double backslashes
             folder_path = folder_path.replace('\\\\', '\\')
             
-            self._current_folder = folder_path
-            self.currentFolderChanged.emit(folder_path)
+            self.currentFolder = folder_path  # Use property setter
             
             contents = []
             for item in os.listdir(folder_path):
@@ -72,7 +90,7 @@ class FileBrowser(QObject):
     @pyqtSlot(result=str)
     def getCurrentFolder(self):
         """Get the currently selected folder path"""
-        return self._current_folder
+        return self.currentFolder
     
     @pyqtSlot(list)
     def updateRamContents(self, filenames):

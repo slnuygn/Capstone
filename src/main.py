@@ -44,6 +44,7 @@ engine.quit.connect(app.quit)
 
 # Add import paths for QML
 engine.addImportPath(os.path.join(project_root, "features", "preprocessing", "ui"))
+engine.addImportPath(os.path.join(project_root, "features", "analysis", "ui"))
 engine.addImportPath(os.path.join(project_root, "ui"))
 
 # Make instances available to QML
