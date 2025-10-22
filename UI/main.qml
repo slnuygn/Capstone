@@ -383,9 +383,6 @@ ApplicationWindow {
                 onStatusChanged: {
                     if (status === Loader.Error) {
                         console.log("Error loading classification_page.qml:", source)
-                        for (var i = 0; i < errors.length; i++) {
-                            console.log("QML Error:", errors[i].toString())
-                        }
                     } else if (status === Loader.Ready) {
                         console.log("Classification page ready")
                     } else if (status === Loader.Loading) {

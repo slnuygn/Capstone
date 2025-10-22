@@ -25,72 +25,11 @@ Item {
 			nextIndex += 1
 
 			if (child.layerValuesChanged && connectedLayers.indexOf(child) === -1) {
-				child.layerValuesChanged.connect(handleLayerUpdate)
 				connectedLayers.push(child)
+				child.layerValuesChanged.connect(function() {
+					handleLayerUpdate(child.layerIndex, child.inChannels, child.outChannels, child.kernelSize, child.padding)
+				})
 			}
-		}
-	}
-
-	function applySavedLayers(layers) {
-		if (!layers || !layers.length) {
-			return
-		}
-
-		for (var i = 0; i < layerColumn.children.length; ++i) {
-			var child = layerColumn.children[i]
-			if (!child || typeof child.layerIndex === "undefined") {
-				continue
-			}
-
-			var layerData = layers[child.layerIndex]
-			if (!layerData) {
-				continue
-			}
-
-			if (layerData.hasOwnProperty("inChannels")) {
-				child.inChannels = layerData.inChannels
-			}
-			if (layerData.hasOwnProperty("outChannels")) {
-				child.outChannels = layerData.outChannels
-			}
-			if (layerData.hasOwnProperty("kernelSize")) {
-				child.kernelSize = layerData.kernelSize
-			}
-			if (layerData.hasOwnProperty("padding")) {
-				child.padding = layerData.padding
-			}
-		}
-	}
-
-	function syncAllLayersToBackend() {
-		if (!classificationConfig) {
-			return
-		}
-
-		for (var i = 0; i < layerColumn.children.length; ++i) {
-			var child = layerColumn.children[i]
-			if (!child || typeof child.layerIndex === "undefined") {
-				continue
-			}
-
-			classificationConfig.updateConvLayer(
-						child.layerIndex,
-						child.inChannels,
-						child.outChannels,
-						child.kernelSize,
-						child.padding)
-		}
-	}
-
-	Component.onCompleted: {
-		initializeLayers()
-
-		if (classificationConfig) {
-			var savedLayers = classificationConfig.getConvLayers()
-			if (savedLayers && savedLayers.length) {
-				applySavedLayers(savedLayers)
-			}
-			syncAllLayersToBackend()
 		}
 	}
 
@@ -98,162 +37,64 @@ Item {
 		width: parent.width / 3
 		height: parent.height
 		anchors.left: parent.left
-		anchors.verticalCenter: parent.verticalCenter
-		color: "#f8f9fa"
-		border.color: "#dee2e6"
-		border.width: 2
-		radius: 6
+		anchors.top: parent.top
+		anchors.bottom: parent.bottom
+		color: "#fdfdfdff"
+		border.color: "#8d8d8dff"
+		border.width: 1
+		radius: 5
 
 		ScrollView {
-			anchors.top: parent.top
-			anchors.left: parent.left
-			anchors.right: parent.right
-			anchors.bottom: parent.bottom
+			anchors.fill: parent
+			anchors.margins: 10
 			clip: true
 
-			contentItem: Flickable {
-				contentWidth: width
-				contentHeight: layerColumn.implicitHeight + 20
+			Item {
+				width: parent.width
+				height: layerColumn.implicitHeight
 
 				Column {
 					id: layerColumn
-					x: 10
-					y: 10
-					width: parent.width - 20
+					anchors.horizontalCenter: parent.horizontalCenter
 					spacing: 0
+					width: parent.width
+
+					ConvolutionalLayer2D {
+					inChannels: 3
+					outChannels: 32
+					kernelSize: 3
+					padding: 0
+				}
+
+				Line {
 					
+				}
 
-					ConvolutionalLayer2D {
-						inChannels: 3232
-						outChannels: 232
-						kernelSize: 33434
-						padding: 1
-					}
+				ConvolutionalLayer2D {
+					
+					inChannels: 32
+					outChannels: 64
+					kernelSize: 3
+					padding: 1
+				}
 
-					Line {
-					}
+				Line {
+					
+				}
 
-					ConvolutionalLayer2D {
-						inChannels: 64
-						outChannels: 128
-						kernelSize: 5
-						padding: 2
-					}
-					Line {
-					}
-
-					ConvolutionalLayer2D {
-						inChannels: 64
-						outChannels: 128
-						kernelSize: 5
-						padding: 2
-						
-					}
-					Line {
-					}
-
-					ConvolutionalLayer2D {
-						inChannels: 64
-						outChannels: 128
-						kernelSize: 5
-						padding: 2
-						
-					}
-					Line {
-					}
-
-					ConvolutionalLayer2D {
-						inChannels: 64
-						outChannels: 128
-						kernelSize: 5
-						padding: 2
-						
-					}
-					Line {
-					}
-
-					ConvolutionalLayer2D {
-						inChannels: 64
-						outChannels: 128
-						kernelSize: 5
-						padding: 2
-						
-					}
-					Line {
-					}
-
-					ConvolutionalLayer2D {
-						inChannels: 64
-						outChannels: 128
-						kernelSize: 5
-						padding: 2
-						
-					}
-
-					Line {
-					}
-
-					ConvolutionalLayer2D {
-						inChannels: 64
-						outChannels: 128
-						kernelSize: 5
-						padding: 2
-						
-					}
-					Line {
-					}
-
-					ConvolutionalLayer2D {
-						inChannels: 64
-						outChannels: 128
-						kernelSize: 5
-						padding: 2
-						
-					}
-					Line {
-					}
-
-					ConvolutionalLayer2D {
-						inChannels: 64
-						outChannels: 128
-						kernelSize: 5
-						padding: 2
-						
-					}
-					Line {
-					}
-
-					ConvolutionalLayer2D {
-						inChannels: 64
-						outChannels: 128
-						kernelSize: 5
-						padding: 2
-						
-					}
-
-					Line {
-					}
-
-					ConvolutionalLayer2D {
-						inChannels: 64
-						outChannels: 128
-						kernelSize: 5
-						padding: 2
-						
-					}
-
-					Line {
-					}
-
-					ConvolutionalLayer2D {
-						inChannels: 64
-						outChannels: 128
-						kernelSize: 5
-						padding: 2
-						
-					}
+				ConvolutionalLayer2D {
+					
+					inChannels: 64
+					outChannels: 128
+					kernelSize: 5
+					padding: 2
+				}
 				}
 			}
 		}
+	}
+
+	Component.onCompleted: {
+		initializeLayers()
 	}
 }
