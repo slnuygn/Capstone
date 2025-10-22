@@ -373,14 +373,25 @@ ApplicationWindow {
         Item {
             id: classificationPage
             anchors.fill: parent
-            anchors.margins: 20
             visible: contentArea.currentIndex === 2
 
-            Text {
-                anchors.centerIn: parent
-                text: "hello world 3"
-                font.pixelSize: 24
-                color: "#333"
+            Loader {
+                id: classificationPageLoader
+                anchors.fill: parent
+                source: "../features/classification/ui/classification_page.qml"
+
+                onStatusChanged: {
+                    if (status === Loader.Error) {
+                        console.log("Error loading classification_page.qml:", source)
+                        for (var i = 0; i < errors.length; i++) {
+                            console.log("QML Error:", errors[i].toString())
+                        }
+                    } else if (status === Loader.Ready) {
+                        console.log("Classification page ready")
+                    } else if (status === Loader.Loading) {
+                        console.log("Loading classification page...")
+                    }
+                }
             }
         }
     }

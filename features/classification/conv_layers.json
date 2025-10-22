@@ -1,0 +1,80 @@
+[
+  {
+    "inChannels": 3232,
+    "outChannels": 232,
+    "kernelSize": 33434,
+    "padding": 1
+  },
+  {
+    "inChannels": 64,
+    "outChannels": 128,
+    "kernelSize": 5,
+    "padding": 2
+  },
+  {
+    "inChannels": 64,
+    "outChannels": 128,
+    "kernelSize": 5,
+    "padding": 2
+  },
+  {
+    "inChannels": 64,
+    "outChannels": 128,
+    "kernelSize": 5,
+    "padding": 2
+  },
+  {
+    "inChannels": 64,
+    "outChannels": 128,
+    "kernelSize": 5,
+    "padding": 2
+  },
+  {
+    "inChannels": 64,
+    "outChannels": 128,
+    "kernelSize": 5,
+    "padding": 2
+  },
+  {
+    "inChannels": 64,
+    "outChannels": 128,
+    "kernelSize": 5,
+    "padding": 2
+  },
+  {
+    "inChannels": 64,
+    "outChannels": 128,
+    "kernelSize": 5,
+    "padding": 2
+  },
+  {
+    "inChannels": 64,
+    "outChannels": 128,
+    "kernelSize": 5,
+    "padding": 2
+  },
+  {
+    "inChannels": 64,
+    "outChannels": 128,
+    "kernelSize": 5,
+    "padding": 2
+  },
+  {
+    "inChannels": 64,
+    "outChannels": 128,
+    "kernelSize": 5,
+    "padding": 2
+  },
+  {
+    "inChannels": 64,
+    "outChannels": 128,
+    "kernelSize": 5,
+    "padding": 2
+  },
+  {
+    "inChannels": 64,
+    "outChannels": 128,
+    "kernelSize": 5,
+    "padding": 2
+  }
+]
