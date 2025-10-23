@@ -21,9 +21,20 @@ from torch.optim import AdamW
 from torch.utils.data import DataLoader, Dataset, random_split
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-CONV_LAYER_SPEC: List[dict] = [
-    {"inChannels": 3, "outChannels": 32, "kernelSize": 3, "padding": 0},
-] + [
+CONV_LAYER_SPEC: List[dict] = [   {'inChannels': 3, 'kernelSize': 3, 'outChannels': 32, 'padding': 0},
+    {'inChannels': 32, 'kernelSize': 3, 'outChannels': 64, 'padding': 1},
+    {'inChannels': 64, 'kernelSize': 5, 'outChannels': 128, 'padding': 2},
+    {'inChannels': 64, 'kernelSize': 5, 'outChannels': 128, 'padding': 2},
+    {'inChannels': 64, 'kernelSize': 5, 'outChannels': 128, 'padding': 2},
+    {'inChannels': 64, 'kernelSize': 5, 'outChannels': 128, 'padding': 2},
+    {'inChannels': 64, 'kernelSize': 5, 'outChannels': 128, 'padding': 2},
+    {'inChannels': 64, 'kernelSize': 5, 'outChannels': 128, 'padding': 2},
+    {'inChannels': 64, 'kernelSize': 5, 'outChannels': 128, 'padding': 2},
+    {'inChannels': 64, 'kernelSize': 5, 'outChannels': 128, 'padding': 2},
+    {'inChannels': 64, 'kernelSize': 5, 'outChannels': 128, 'padding': 2},
+    {'inChannels': 64, 'kernelSize': 5, 'outChannels': 128, 'padding': 2},
+    {'inChannels': 64, 'kernelSize': 5, 'outChannels': 128, 'padding': 2}]
++ [
     {"inChannels": 64, "outChannels": 128, "kernelSize": 5, "padding": 2}
     for _ in range(12)
 ]
