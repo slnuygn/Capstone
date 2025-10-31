@@ -16,7 +16,7 @@ import features
 
 # Import our custom classes
 from features.preprocessing.python.file_browser import FileBrowser
-from features.classification.python.config_manager import ClassificationConfig
+# from features.classification.python.config_manager import ClassificationConfig
 from src.matlab_executor import MatlabExecutor
 
 # Function to get the resource path (works for both development and PyInstaller)
@@ -39,7 +39,7 @@ qmlRegisterType(FileBrowser, "FileBrowser", 1, 0, "FileBrowser")
 # Create instances
 matlab_executor = MatlabExecutor()
 file_browser = FileBrowser()
-classification_config = ClassificationConfig()
+# classification_config = ClassificationConfig()
 
 engine = QQmlApplicationEngine()
 engine.quit.connect(app.quit)
@@ -52,7 +52,7 @@ engine.addImportPath(os.path.join(project_root, "ui"))
 # Make instances available to QML
 engine.rootContext().setContextProperty("matlabExecutor", matlab_executor)
 engine.rootContext().setContextProperty("fileBrowser", file_browser)
-engine.rootContext().setContextProperty("classificationConfig", classification_config)
+# engine.rootContext().setContextProperty("classificationConfig", classification_config)
 
 engine.load(QUrl.fromLocalFile(os.path.join(project_root, 'ui', 'main.qml')))
 
