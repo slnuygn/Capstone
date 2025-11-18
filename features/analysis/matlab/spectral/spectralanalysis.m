@@ -12,21 +12,6 @@ cfg.foi = 1:1:30;        % Frequencies of interest (e.g., 1 to 30 Hz in 1 Hz ste
 
 % 3. Run the spectral analysis on the task data variables
 % This will compute the average power spectrum across all trials
-pow_visc = ft_freqanalysis(cfg, data_visc);
-pow_audc = ft_freqanalysis(cfg, data_audc);
-
-% 4. (Optional) Visualize the results
-% You can use ft_multiplotER or ft_singleplotER to view the spectra
-
-figure;
-cfg_plot = [];
-cfg_plot.layout = 'easycapM10.mat'; % Specify the layout file used in the tutorial
-ft_multiplotER(cfg_plot, pow_visc, pow_audc);
-legend('Visual', 'Auditory');
-
-figure;
-cfg_plot.channel = '1'; % Plot a single channel (e.g., channel '1')
-ft_singleplotER(cfg_plot, pow_visc, pow_audc);
-legend('Visual', 'Auditory');
-xlabel('Frequency (Hz)');
-ylabel('Power');
+spectr_target = ft_freqanalysis(cfg, target);
+spectr_standard = ft_freqanalysis(cfg, standard);
+spectr_novelty = ft_freqanalysis(cfg, novelty);

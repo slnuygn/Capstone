@@ -956,7 +956,7 @@ Item {
             from: -0.5
             to: 0.6
             firstValue: -0.2
-            secondValue: 0.0
+            secondValue: 0.6
             stepSize: 0.1
             unit: ""
             sliderState: "default"

@@ -25,7 +25,19 @@ ScrollView {
         }
 
         ClassifierTemplate {
-            displayText: "DBN Classifier"
+            displayText: "RNN Classifier"
+        }
+
+        ClassifierTemplate {
+            displayText: "SVM Classifier"
+        }
+
+        ClassifierTemplate {
+            displayText: "KNN Classifier"
+        }
+
+        ClassifierTemplate {
+            displayText: "LSTM Classifier"
         }
     }
 }

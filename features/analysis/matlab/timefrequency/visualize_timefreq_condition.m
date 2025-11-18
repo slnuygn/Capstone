@@ -6,13 +6,13 @@ cfg.layout   = 'natmeg_customized_eeg1005.lay';
 cfg.channel  = 'EEG126';
 
 figure;
-ft_singleplotTFR(cfg, spectr_target);
+ft_singleplotTFR(cfg, freq_target);
 title('Target condition');
 
 figure;
-ft_singleplotTFR(cfg, spectr_standard);
+ft_singleplotTFR(cfg, freq_standard);
 title('Standard condition');
 
 figure;
-ft_singleplotTFR(cfg, spectr_novelty);
+ft_singleplotTFR(cfg, freq_novelty);
 title('Novelty condition');

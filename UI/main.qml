@@ -11,7 +11,7 @@ ApplicationWindow {
     visible: true
     width: 600
     height: 500
-    title: "Capstone"
+    title: "NeuroPAC: Preprocessing and Analysis Console"
 
     // Property to hold MATLAB output
     property string matlabOutput: "Click 'Run MATLAB' to execute script"
@@ -346,6 +346,13 @@ ApplicationWindow {
 
                 onLoaded: {
                     console.log("Processing page loaded successfully")
+                    
+                    // Bind fileBrowser properties
+                    if (item) {
+                        item.currentFolder = Qt.binding(function() { return fileBrowserComponent.currentFolder })
+                        item.folderContents = Qt.binding(function() { return fileBrowserComponent.folderContents })
+                    }
+                    
                     if (matlabExecutor && item && item.setErpLatencyRange) {
                         var latencyWindow = matlabExecutor.getCurrentErpLatency()
                         if (latencyWindow && latencyWindow.length >= 2) {

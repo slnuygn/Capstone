@@ -9,6 +9,7 @@ Item {
 
     property string displayText: "Analysis Module"
     property bool expanded: false
+    signal buttonClicked()
     default property alias expandedContent: contentContainer.data
 
     MouseArea {
@@ -64,17 +65,36 @@ Item {
 
         Column {
             id: contentContainer
-            anchors.fill: parent
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
             anchors.margins: 10
             spacing: 10
         }
 
-        Text {
-            text: "Expanded Content"
-            anchors.centerIn: parent
-            font.pixelSize: 18
-            color: "#333"
-            visible: contentContainer.children.length === 0
+        Item {
+            width: parent.width - 20
+            height: moduleButton.implicitHeight
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            anchors.margins: 10
+
+            Button {
+                id: moduleButton
+                text: "Feature Extract"
+                anchors.right: parent.right
+                flat: true
+                padding: 10
+                background: Rectangle {
+                    color: "#2196f3"
+                    radius: 4
+                    anchors.fill: parent
+                }
+
+                onClicked: {
+                    moduleTemplate.buttonClicked()
+                }
+            }
         }
     }
 }
