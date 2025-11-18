@@ -352,13 +352,6 @@ ApplicationWindow {
                         item.currentFolder = Qt.binding(function() { return fileBrowserComponent.currentFolder })
                         item.folderContents = Qt.binding(function() { return fileBrowserComponent.folderContents })
                     }
-                    
-                    if (matlabExecutor && item && item.setErpLatencyRange) {
-                        var latencyWindow = matlabExecutor.getCurrentErpLatency()
-                        if (latencyWindow && latencyWindow.length >= 2) {
-                            item.setErpLatencyRange(latencyWindow[0], latencyWindow[1])
-                        }
-                    }
                 }
 
                 onStatusChanged: {

@@ -12,13 +12,18 @@ cfg.trialdef.prestim    = 0.5; % in seconds
 cfg.trialdef.poststim   = 1.0; % in seconds
 
 cfg = ft_definetrial(cfg);
-cfg.channel = selected_channels;
+cfg.channel = 'all';
 
 cfg.demean = 'yes';
 cfg.baselinewindow = [-0.2 0.0];
 
 cfg.dftfilter = 'yes';
 cfg.dftfreq = [50 60];
+cfg.output = 'pow';
+cfg.method = 'mtmfft';
+cfg.taper = 'hanning';
+cfg.toi = '0:0.01:1';
+cfg.foi = '1:1:30';
 
 prepped_data= ft_preprocessing(cfg);
 

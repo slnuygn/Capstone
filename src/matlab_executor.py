@@ -392,6 +392,24 @@ class MatlabExecutor(QObject):
         formatted_second = self._format_matlab_numeric_value(second_value)
         return f"[{formatted_first} {formatted_second}]"
 
+    def _format_matlab_tri_range(self, first_value, second_value, third_value) -> str:
+        formatted_first = self._format_matlab_numeric_value(first_value)
+        formatted_second = self._format_matlab_numeric_value(second_value)
+        formatted_third = self._format_matlab_numeric_value(third_value)
+        return f"[{formatted_first} {formatted_second} {formatted_third}]"
+
+    def _format_matlab_colon_range(self, first_value, step_value, third_value) -> str:
+        formatted_first = self._format_matlab_numeric_value(first_value)
+        formatted_step = self._format_matlab_numeric_value(step_value)
+        formatted_third = self._format_matlab_numeric_value(third_value)
+        return f"{formatted_first}:{formatted_step}:{formatted_third}"
+
+    def _should_use_colon_format(self, matlab_property: str) -> bool:
+        """Determine if a property should be saved in colon syntax format."""
+        # Properties that represent ranges/sequences should use colon format
+        colon_properties = ['cfg.toi', 'cfg.foi', 'cfg.latency', 'cfg.frequency', 'cfg.time']
+        return matlab_property in colon_properties
+
     def _replace_or_insert_matlab_assignment(self, content: str, property_name: str, formatted_value: str):
         pattern = rf"(?m)^(\s*{re.escape(property_name)}\s*=\s*)(.*)$"
 
@@ -1030,6 +1048,81 @@ class MatlabExecutor(QObject):
 
         except Exception as e:
             error_msg = f"Error saving range slider {matlab_property}: {str(e)}"
+            print(error_msg)
+            self.configSaved.emit(error_msg)
+            return False
+
+    @pyqtSlot(str, float, float, float, float, str, result=bool)
+    def saveTriSliderPropertyToMatlab(self, matlab_property, first_value, second_value, third_value, step_value, unit):
+        """Persist a tri-slider selection as a MATLAB numeric array assignment."""
+        try:
+            normalized_property = (matlab_property or "").strip()
+            if not normalized_property:
+                return False
+
+            if not normalized_property.startswith("cfg."):
+                normalized_property = f"cfg.{normalized_property}"
+
+            # Determine format based on property type
+            if self._should_use_colon_format(normalized_property):
+                formatted_value = self._format_matlab_colon_range(first_value, step_value, third_value)
+            else:
+                formatted_value = self._format_matlab_tri_range(first_value, second_value, third_value)
+
+            unit_suffix = f" {unit}" if unit else ""
+
+            target_scripts = []
+            preprocess_path = self._get_preprocess_data_script_path()
+            if preprocess_path:
+                target_scripts.append(("preprocess_data.m", preprocess_path))
+            else:
+                print("preprocess_data.m not found; cannot persist tri-slider property.")
+
+            if not target_scripts:
+                error_msg = f"No script targets available for {normalized_property}."
+                print(error_msg)
+                self.configSaved.emit(error_msg)
+                return False
+
+            messages = []
+            any_changes = False
+
+            for display_name, script_path in target_scripts:
+                try:
+                    with open(script_path, 'r', encoding='utf-8') as file:
+                        content = file.read()
+
+                    replaced, new_content = self._replace_or_insert_matlab_assignment(
+                        content, normalized_property, formatted_value)
+
+                    if new_content == content:
+                        info_msg = f"No changes required for {normalized_property} in {display_name}"
+                        print(info_msg)
+                        messages.append(info_msg)
+                        continue
+
+                    with open(script_path, 'w', encoding='utf-8') as file:
+                        file.write(new_content)
+
+                    any_changes = True
+                    status = "Updated" if replaced else "Inserted"
+                    success_msg = f"{status} {normalized_property} = {formatted_value}{unit_suffix} in {display_name}"
+                    print(success_msg)
+                    messages.append(success_msg)
+                except Exception as inner_error:
+                    error_msg = f"Error updating {display_name} for {normalized_property}: {str(inner_error)}"
+                    print(error_msg)
+                    messages.append(error_msg)
+
+            if not messages:
+                messages.append(f"No script updates performed for {normalized_property}.")
+
+            summary = "; ".join(messages)
+            self.configSaved.emit(summary)
+            return any_changes
+
+        except Exception as e:
+            error_msg = f"Error saving tri-slider {matlab_property}: {str(e)}"
             print(error_msg)
             self.configSaved.emit(error_msg)
             return False
