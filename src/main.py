@@ -4,6 +4,9 @@ import os
 # Set Qt Quick Controls style to Fusion (supports customization)
 os.environ['QT_QUICK_CONTROLS_STYLE'] = 'Fusion'
 
+# Enable QML XMLHttpRequest to read local files for dynamic parameter loading
+os.environ['QML_XHR_ALLOW_FILE_READ'] = '1'
+
 # Add the project root to Python path so we can import from features/
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
