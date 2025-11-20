@@ -18,7 +18,7 @@ Item {
 
     Loader {
         id: parameterComponentLoader
-        width: parent.width
+        width: parent.width / 2
 
         sourceComponent: {
             if (!parameterConfig || !parameterConfig.component_type) {
@@ -52,7 +52,6 @@ Item {
             secondValue: parameterConfig.second_value || parameterConfig.to || 1
             stepSize: parameterConfig.step_size || 0.1
             unit: parameterConfig.unit || ""
-            width: parent.width * (parameterConfig.width_factor || 0.1)
             backgroundColor: parameterConfig.background_color || "white"
             sliderState: editModeEnabled ? "edit" : "default"
 

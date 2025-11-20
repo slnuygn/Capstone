@@ -3,7 +3,7 @@ import QtQuick.Controls 2.15
 
 Item {
     id: dropdownTemplate
-    width: parent ? parent.width * 0.75 : 225
+    width: parent ? parent.width : 225
     height: Math.max(60, contentColumn ? contentColumn.implicitHeight : 60)
     z: 1000  // Base z-index
 

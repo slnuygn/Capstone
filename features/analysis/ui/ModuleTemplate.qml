@@ -246,6 +246,7 @@ Item {
             Repeater {
                 model: Object.keys(dynamicParameters)
                 delegate: DynamicParameterLoader {
+                    width: contentContainer.width
                     parameterName: modelData
                     parameterConfig: dynamicParameters[modelData]
                     editModeEnabled: false  // TODO: Connect to global edit mode

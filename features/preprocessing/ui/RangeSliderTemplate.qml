@@ -3,7 +3,7 @@ import QtQuick.Controls 2.15
 
 Item {
     id: rangeSliderTemplate
-    width: parent ? parent.width * 0.75 : 225
+    width: parent ? parent.width : 225
     height: Math.max(80, contentColumn ? contentColumn.implicitHeight : 80)
 
     // Properties for customization
