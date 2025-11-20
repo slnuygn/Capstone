@@ -19,6 +19,13 @@ cfg.baselinewindow = [-0.2 0.0];
 
 cfg.dftfilter = 'yes';
 cfg.dftfreq = [50 60];
+cfg.output = 'fourier';
+cfg.method = 'mtmfft';
+cfg.pad = 8;
+cfg.width = 3;
+cfg.baselinetype = 'absolute';
+cfg.parameter = 'powspctrm';
+cfg.taper = 'hanning';
 
 prepped_data= ft_preprocessing(cfg);
 

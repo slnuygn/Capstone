@@ -351,6 +351,12 @@ ApplicationWindow {
                     if (item) {
                         item.currentFolder = Qt.binding(function() { return fileBrowserComponent.currentFolder })
                         item.folderContents = Qt.binding(function() { return fileBrowserComponent.folderContents })
+                        
+                        // Connect signals
+                        item.openFolderDialog.connect(function() { fileBrowserComponent.folderDialog.open() })
+                        item.refreshFileExplorer.connect(function() { 
+                            fileBrowserComponent.refreshFolderContents()
+                        })
                     }
                 }
 
@@ -379,6 +385,22 @@ ApplicationWindow {
                 id: classificationPageLoader
                 anchors.fill: parent
                 source: "../features/classification/ui/classification_page.qml"
+
+                onLoaded: {
+                    console.log("Classification page loaded successfully")
+                    
+                    // Bind fileBrowser properties
+                    if (item) {
+                        item.currentFolder = Qt.binding(function() { return fileBrowserComponent.currentFolder })
+                        item.folderContents = Qt.binding(function() { return fileBrowserComponent.folderContents })
+                        
+                        // Connect signals
+                        item.openFolderDialog.connect(function() { fileBrowserComponent.folderDialog.open() })
+                        item.refreshFileExplorer.connect(function() { 
+                            fileBrowserComponent.refreshFolderContents()
+                        })
+                    }
+                }
 
                 onStatusChanged: {
                     if (status === Loader.Error) {

@@ -346,81 +346,6 @@ Item {
 
         console.log("Added new range slider template:", labelText)
     }
-    
-
-    // Top header with buttons
-    Row {
-        id: topHeader
-        width: parent.width
-        height: 35
-        spacing: 10
-        
-        // Header text
-        Text {
-            text: "The .set files in this directory will be preprocessed."
-            font.pixelSize: 14
-            color: "#333"
-            anchors.verticalCenter: parent.verticalCenter
-        }
-        
-        // Spacer to push buttons to the right
-        Item {
-            width: parent.width - 400 - runButton.width - parent.spacing * 2
-            height: 1
-        }
-        
-        // Run & Save button
-        Button {
-            id: runButton
-            text: preprocessingPageRoot.isProcessing ? "Processing..." : "Preprocess and Run ICA"
-            width: 200
-            height: 35
-            enabled: !preprocessingPageRoot.isProcessing  // Disable during processing
-
-            background: Rectangle {
-                color: parent.enabled ? 
-                    (parent.pressed ? "#1976d2" : (parent.hovered ? "#2196f3" : "#2196f3")) :
-                    "#888888"  // Gray when disabled
-                radius: 5
-                border.color: parent.enabled ? "#1976d2" : "#666666"
-                border.width: 1
-            }
-
-            contentItem: Text {
-                text: parent.text
-                color: parent.enabled ? "white" : "#cccccc"
-                font.pixelSize: 12
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-            }
-
-            onClicked: {
-                // Set processing state to true
-                preprocessingPageRoot.isProcessing = true
-                
-                var prestimValue = prestimPoststimSlider.firstValue
-                var poststimValue = prestimPoststimSlider.secondValue
-                var trialfunValue = trialfunDropdown.selectedItems.length > 0 ? trialfunDropdown.selectedItems[0] : ""
-                var eventtypeValue = eventtypeDropdown.selectedItems.length > 0 ? eventtypeDropdown.selectedItems[0] : ""
-                var selectedChannelsList = preprocessingPageRoot.selectedChannels
-                console.log("Running preprocessing and ICA:")
-                console.log("cfg.trialdef.prestim =", prestimValue.toFixed(1))
-                console.log("cfg.trialdef.poststim =", poststimValue.toFixed(1))
-                console.log("cfg.trialfun =", trialfunValue)
-                console.log("cfg.trialdef.eventtype =", eventtypeValue)
-                console.log("selected channels =", selectedChannelsList)
-                console.log("cfg.trialdef.eventvalue =", eventvalueDropdown.selectedItems)
-                console.log("cfg.demean =", "yes")
-                console.log("cfg.baselinewindow =", "[" + baselineSlider.firstValue + " " + baselineSlider.secondValue + "]")
-                console.log("cfg.dftfilter =", "yes")
-                console.log("cfg.dftfreq =", "[" + dftfreqSlider.firstValue + " " + dftfreqSlider.secondValue + "]")
-                console.log("data path =", preprocessingPageRoot.currentFolder)
-                
-                // Call the new run and save method that includes MATLAB execution with ICA
-                matlabExecutor.runAndSaveConfiguration(prestimValue, poststimValue, trialfunValue, eventtypeValue, selectedChannelsList, eventvalueDropdown.selectedItems, true, baselineSlider.firstValue, baselineSlider.secondValue, true, dftfreqSlider.firstValue, dftfreqSlider.secondValue, preprocessingPageRoot.currentFolder)
-            }
-        }
-    }
 
     // Signals to communicate with main.qml
     signal openFolderDialog()
@@ -540,10 +465,9 @@ Item {
     Rectangle {
         id: fileExplorerRect
         anchors.left: parent.left
-        anchors.top: topHeader.bottom
-        anchors.topMargin: 10
+        anchors.top: parent.top
         width: parent.width * 0.2  // Slightly wider
-        height: parent.height - topHeader.height - 20  // Same height as right side
+        height: parent.height
         color: "#f8f9fa"
         border.color: "#dee2e6"
         border.width: 2
@@ -741,13 +665,11 @@ Item {
     // Right side - Configuration Area with Scrolling (maximized space usage)
     Rectangle {
         anchors.left: fileExplorerRect.right
-        anchors.top: topHeader.bottom
+        anchors.top: parent.top
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         anchors.leftMargin: 10  // Reduced from 20
-        anchors.topMargin: 10   // Reduced from 20
         anchors.rightMargin: 5  // Reduced from 20 to push scrollbar right
-        anchors.bottomMargin: 10 // Aligned with file browser bottom edge
         color: "transparent"
         
         // Scrollable content area - fills entire rectangle
@@ -1055,4 +977,60 @@ Item {
             }  // End Column (mainColumn)
         }  // End ScrollView
     }  // End Rectangle
+
+    // Floating Action Button - Preprocess and Run ICA
+    Button {
+        id: runButton
+        text: preprocessingPageRoot.isProcessing ? "Processing..." : "Preprocess and Run ICA"
+        width: 200
+        height: 50
+        enabled: !preprocessingPageRoot.isProcessing
+        
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.rightMargin: 20
+        anchors.bottomMargin: 20
+        
+        z: 1000  // Ensure it floats above other content
+
+        background: Rectangle {
+            color: parent.enabled ? 
+                (parent.pressed ? "#1565c0" : (parent.hovered ? "#1976d2" : "#2196f3")) :
+                "#888888"
+            radius: 5
+            
+        }
+
+        contentItem: Text {
+            text: parent.text
+            color: parent.enabled ? "white" : "#cccccc"
+            font.pixelSize: 13
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+        }
+
+        onClicked: {
+            preprocessingPageRoot.isProcessing = true
+            
+            var prestimValue = prestimPoststimSlider.firstValue
+            var poststimValue = prestimPoststimSlider.secondValue
+            var trialfunValue = trialfunDropdown.selectedItems.length > 0 ? trialfunDropdown.selectedItems[0] : ""
+            var eventtypeValue = eventtypeDropdown.selectedItems.length > 0 ? eventtypeDropdown.selectedItems[0] : ""
+            var selectedChannelsList = preprocessingPageRoot.selectedChannels
+            console.log("Running preprocessing and ICA:")
+            console.log("cfg.trialdef.prestim =", prestimValue.toFixed(1))
+            console.log("cfg.trialdef.poststim =", poststimValue.toFixed(1))
+            console.log("cfg.trialfun =", trialfunValue)
+            console.log("cfg.trialdef.eventtype =", eventtypeValue)
+            console.log("selected channels =", selectedChannelsList)
+            console.log("cfg.trialdef.eventvalue =", eventvalueDropdown.selectedItems)
+            console.log("cfg.demean =", "yes")
+            console.log("cfg.baselinewindow =", "[" + baselineSlider.firstValue + " " + baselineSlider.secondValue + "]")
+            console.log("cfg.dftfilter =", "yes")
+            console.log("cfg.dftfreq =", "[" + dftfreqSlider.firstValue + " " + dftfreqSlider.secondValue + "]")
+            console.log("data path =", preprocessingPageRoot.currentFolder)
+            
+            matlabExecutor.runAndSaveConfiguration(prestimValue, poststimValue, trialfunValue, eventtypeValue, selectedChannelsList, eventvalueDropdown.selectedItems, true, baselineSlider.firstValue, baselineSlider.secondValue, true, dftfreqSlider.firstValue, dftfreqSlider.secondValue, preprocessingPageRoot.currentFolder)
+        }
+    }
 }  // End Item (preprocessingPageRoot)
