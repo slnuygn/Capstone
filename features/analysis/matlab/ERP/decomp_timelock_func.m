@@ -183,3 +183,13 @@ outputPath = fullfile(dataFolder, 'erp_output.mat');
 save(outputPath, 'ERP_data');
 fprintf('ERP analysis results saved to %s\n', outputPath);
 end
+
+
+%%
+
+
+
+% filtering for erp
+
+% cfg.latency [0 1]
+% for loop içinde ft_selectdata[cfg, data(i), condition()]

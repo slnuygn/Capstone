@@ -1,19 +1,29 @@
 cfg         = [];
 
-% not sure of these, ask the teacher
 cfg.output     = 'pow';
-cfg.channel    = 'all';
-cfg.method     = 'mtmconvol';
-cfg.taper      = 'hanning';
-cfg.toi        = -1 : 0.10 : 1.5;
-cfg.foi        = 2:2:40;
-cfg.t_ftimwin  = ones(size(cfg.foi)) * 0.5;
+cfg.method     = 'wavelet';
 
-cfg.trials   = find(data.trialinfo(:,1) == S200);
-freq_target = ft_freqanalysis(cfg, data);
+cfg.toi        = -2.0 : 0.01 : 2.0;
+cfg.foi        = 1 : 0.5 : 15;
 
-cfg.trials   = find(data.trialinfo(:,1) == S201);
-freq_standard = ft_freqanalysis(cfg, data);
+cfg.pad = 8;
+cfg.width = 3;
 
-cfg.trials   = find(data.trialinfo(:,1) == S202);
-freq_novelty = ft_freqanalysis(cfg, data);
+cfg.trials   = (data.trialinfo == S200);
+target = ft_selectdata(cfg, data);
+freq_target = ft_freqanalysis(cfg, target);
+
+cfg.trials   = (data.trialinfo == S201);
+standard = ft_selectdata(cfg, data);
+freq_standard = ft_freqanalysis(cfg, standard);
+
+cfg.trials   = (data.trialinfo == S202);
+novelty = ft_selectdata(cfg, data);
+freq_novelty = ft_freqanalysis(cfg, novelty);
+
+% decomposeu preprocessinge koy, erpden çıkar
+% baseline correction stage, time freqten sonra yap
+cfg= [];
+cfg.baselinetype = 'absolute';
+cfg.parameter = 'powspctrm';
+cfg.baseline = [-1 -0.5]; % for segment size prestim poststim -2 2, for beta and theta

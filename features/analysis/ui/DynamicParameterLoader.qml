@@ -18,7 +18,7 @@ Item {
 
     Loader {
         id: parameterComponentLoader
-        width: parent.width / 2
+        width: parent.width
 
         sourceComponent: {
             if (!parameterConfig || !parameterConfig.component_type) {
