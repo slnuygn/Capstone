@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "updated": "2025-11-21",
+  "description": "Stores curated choice lists for MATLAB cfg.* parameters that render as dropdowns in the analysis processing page.",
+  "parameters": {
+    "output": {
+      "options": ["pow", "fourier", "avgpow", "phase", "keepsingletrials"],
+      "modules": [
+        "Time-Frequency Analysis",
+        "Spectral Analysis",
+        "Inter-Trial Coherence Analysis"
+      ],
+      "has_add_feature": true,
+      "is_multi_select": false,
+      "max_selections": 1
+    },
+    "method": {
+      "options": ["wavelet", "mtmfft", "mtmconvol", "mtmwelch", "hilbert"],
+      "modules": [
+        "Time-Frequency Analysis",
+        "Spectral Analysis",
+        "Inter-Trial Coherence Analysis"
+      ],
+      "has_add_feature": true,
+      "is_multi_select": false,
+      "max_selections": 1
+    },
+    "taper": {
+      "options": ["hanning", "dpss", "rectwin", "bartlett"],
+      "modules": ["Spectral Analysis"],
+      "has_add_feature": true,
+      "is_multi_select": false,
+      "max_selections": 1
+    },
+    "colorbar": {
+      "options": ["yes", "no"],
+      "modules": ["Time-Frequency Analysis"],
+      "has_add_feature": false,
+      "is_multi_select": false,
+      "max_selections": 1
+    },
+    "zlim": {
+      "options": ["maxabs", "abs", "maxmin", "zeromax"],
+      "modules": ["Time-Frequency Analysis"],
+      "has_add_feature": true,
+      "is_multi_select": false,
+      "max_selections": 1
+    },
+    "layout": {
+      "options": [
+        "natmeg_customized_eeg1005.lay",
+        "easycap64ch-avg.lay",
+        "biosemi128.lay",
+        "standard_1020.elc"
+      ],
+      "modules": ["Time-Frequency Analysis"],
+      "has_add_feature": true,
+      "is_multi_select": false,
+      "max_selections": 1
+    },
+    "channel": {
+      "options": ["all", "EEG001", "EEG010", "EEG126"],
+      "modules": ["Time-Frequency Analysis"],
+      "has_add_feature": true,
+      "is_multi_select": false,
+      "max_selections": 1
+    },
+    "baselinetype": {
+      "options": ["absolute", "relative", "relchange", "db"],
+      "modules": ["Time-Frequency Analysis"],
+      "has_add_feature": true,
+      "is_multi_select": false,
+      "max_selections": 1
+    },
+    "parameter": {
+      "options": ["powspctrm", "avg", "trial", "mom"],
+      "modules": ["Time-Frequency Analysis"],
+      "has_add_feature": true,
+      "is_multi_select": false,
+      "max_selections": 1
+    }
+  }
+}

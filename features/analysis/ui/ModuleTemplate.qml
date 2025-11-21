@@ -14,6 +14,7 @@ Item {
     property string errorMessage: ""
     property string moduleName: ""  // Name used to find corresponding MATLAB file
     property bool editModeEnabled: false  // Track edit mode state
+    property var dropdownOptions: ({})
     signal buttonClicked()
     default property alias expandedContent: contentContainer.data
 
@@ -21,10 +22,79 @@ Item {
     property var dynamicParameters: ({})
 
     // Load parameters when module name is set
+    Component.onCompleted: loadDropdownOptions
+
     onModuleNameChanged: {
         if (moduleName && moduleName !== "") {
-            loadDynamicParameters();
+            loadDropdownOptions()
+            loadDynamicParameters()
         }
+    }
+
+    function loadDropdownOptions() {
+        if (dropdownOptions && Object.keys(dropdownOptions).length > 0)
+            return
+
+        var optionsPath = Qt.resolvedUrl("../../../config/analysis_dropdown_options.json")
+        var xhr = new XMLHttpRequest()
+        try {
+            xhr.open("GET", optionsPath, false)
+            xhr.send()
+            if (xhr.status === 200 && xhr.responseText.length > 0) {
+                var payload = JSON.parse(xhr.responseText)
+                dropdownOptions = payload && payload.parameters ? payload.parameters : {}
+            } else {
+                console.warn("Dropdown options file missing or unreadable", optionsPath)
+            }
+        } catch (error) {
+            console.warn("Failed to load dropdown options:", error)
+        }
+    }
+
+    function getDropdownOptionEntry(paramName) {
+        if (!dropdownOptions)
+            return null
+
+        var normalized = (paramName || "").toLowerCase()
+        var entry = dropdownOptions[normalized]
+        if (!entry)
+            return null
+
+        if (entry.modules && entry.modules.length > 0 && entry.modules.indexOf(moduleName) === -1)
+            return null
+
+        return entry
+    }
+
+    function applyDropdownOptionOverrides(config, paramName, currentValue) {
+        if (!config || config.component_type !== 'DropdownTemplate')
+            return
+
+        var entry = getDropdownOptionEntry(paramName)
+        if (!entry)
+            return
+
+        var optionList = entry.options ? entry.options.slice() : []
+        if (currentValue && optionList.indexOf(currentValue) === -1)
+            optionList.unshift(currentValue)
+
+        if (optionList.length > 0) {
+            config.model = optionList.slice()
+            if (config.is_multi_select) {
+                config.all_items = optionList.slice()
+                if (!config.selected_items || config.selected_items.length === 0)
+                    config.selected_items = currentValue ? [currentValue] : []
+            } else {
+                config.current_index = Math.max(0, optionList.indexOf(currentValue))
+            }
+        }
+
+        if (entry.has_add_feature !== undefined)
+            config.has_add_feature = entry.has_add_feature
+        if (entry.is_multi_select !== undefined)
+            config.is_multi_select = entry.is_multi_select
+        if (entry.max_selections !== undefined)
+            config.max_selections = entry.max_selections
     }
 
     function loadDynamicParameters() {
@@ -138,10 +208,12 @@ Item {
                  (paramValue.startsWith('"') && paramValue.endsWith('"'))) {
             config.component_type = 'DropdownTemplate';
             config.label = paramName.replace(/_/g, ' ').replace(/\b\w/g, function(l) { return l.toUpperCase(); });
-            config.model = [paramValue.slice(1, -1)];
+            var stringValue = paramValue.slice(1, -1);
+            config.model = [stringValue];
             config.current_index = 0;
             config.has_add_feature = false;
             config.is_multi_select = false;
+            applyDropdownOptionOverrides(config, paramName, stringValue);
         }
         // Check if it's a number
         else if (!isNaN(parseFloat(paramValue))) {
@@ -152,6 +224,7 @@ Item {
             config.current_index = 0;
             config.has_add_feature = false;
             config.is_multi_select = false;
+            applyDropdownOptionOverrides(config, paramName, paramValue);
         }
 
         return config;

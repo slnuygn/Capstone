@@ -7,12 +7,18 @@ This script parses MATLAB files and generates UI component configurations.
 import sys
 import os
 import json
-from matlab_parameter_parser import MatlabParameterParser, ModuleParameterMapper, create_ui_component
+from matlab_parameter_parser import (
+    MatlabParameterParser,
+    ModuleParameterMapper,
+    DropdownOptionStore,
+    create_ui_component,
+)
 
 def get_module_parameters(module_name: str) -> dict:
     """Get parameter configurations for a specific module."""
     parser = MatlabParameterParser()
     mapper = ModuleParameterMapper()
+    option_store = DropdownOptionStore()
 
     matlab_file = mapper.get_matlab_file(module_name)
     if not matlab_file:
@@ -28,7 +34,8 @@ def get_module_parameters(module_name: str) -> dict:
     # Convert parameters to UI components
     ui_components = {}
     for param_name, param_info in parameters.items():
-        ui_components[param_name] = create_ui_component(param_name, param_info)
+        option_entry = option_store.get_option_entry(param_name, module_name)
+        ui_components[param_name] = create_ui_component(param_name, param_info, option_entry)
 
     return ui_components
 
