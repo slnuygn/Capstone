@@ -26,6 +26,9 @@ cfg.width = 3;
 cfg.baselinetype = 'absolute';
 cfg.parameter = 'powspctrm';
 cfg.taper = 'hanning';
+cfg.toi = [-0.1 1];
+cfg.foi = [1 15.1];
+cfg.baseline = [-1 -0.5];
 
 prepped_data= ft_preprocessing(cfg);
 

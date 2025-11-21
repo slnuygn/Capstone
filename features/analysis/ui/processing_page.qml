@@ -17,6 +17,20 @@ Item {
     signal openFolderDialog()
     signal refreshFileExplorer()
     
+    // Function to set edit mode for all modules
+    function setEditMode(enabled) {
+        processingPageRoot.editModeEnabled = enabled
+        
+        // Update all module templates
+        if (erpAnalysisModule) erpAnalysisModule.editModeEnabled = enabled
+        if (timeFreqModule) timeFreqModule.editModeEnabled = enabled
+        if (interTrialModule) interTrialModule.editModeEnabled = enabled
+        if (channelWiseModule) channelWiseModule.editModeEnabled = enabled
+        if (spectralModule) spectralModule.editModeEnabled = enabled
+        
+        console.log("Processing page edit mode set to:", enabled)
+    }
+    
     // File Explorer Rectangle - Left side
     Rectangle {
         id: fileExplorerRect
@@ -232,6 +246,7 @@ Item {
                 spacing: 1
 
                 ModuleTemplate {
+                    id: erpAnalysisModule
                     displayText: "ERP Analysis"
                     moduleName: "ERP Analysis"
                     currentFolder: processingPageRoot.currentFolder
@@ -253,21 +268,25 @@ Item {
                 }
                 
                 ModuleTemplate {
+                    id: timeFreqModule
                     displayText: "Time-Frequency Analysis"
                     moduleName: "Time-Frequency Analysis"
                 }
 
                 ModuleTemplate {
+                    id: interTrialModule
                     displayText: "Inter-Trial Coherence Analysis"
                     moduleName: "Inter-Trial Coherence Analysis"
                 }
 
                 ModuleTemplate {
+                    id: channelWiseModule
                     displayText: "Channel-Wise Coherence Analysis"
                     moduleName: "Channel-Wise Coherence Analysis"
                 }
 
                 ModuleTemplate {
+                    id: spectralModule
                     displayText: "Spectral Analysis"
                     moduleName: "Spectral Analysis"
                 }

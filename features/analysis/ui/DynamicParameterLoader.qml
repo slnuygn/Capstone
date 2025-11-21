@@ -30,8 +30,8 @@ Item {
                     return rangeSliderComponent;
                 case "DropdownTemplate":
                     return dropdownComponent;
-                case "TriSliderTemplate":
-                    return triSliderComponent;
+                case "StepRangeSliderTemplate":
+                    return stepRangeSliderComponent;
                 default:
                     return null;
             }
@@ -85,10 +85,20 @@ Item {
             matlabProperty: parameterConfig.matlab_property || ""
             model: parameterConfig.model || []
             currentIndex: parameterConfig.current_index || 0
-            hasAddFeature: parameterConfig.has_add_feature || false
+            property bool addFeatureEnabled: parameterConfig.has_add_feature !== undefined ? parameterConfig.has_add_feature : true
+            property string propertySuffix: {
+                var prop = parameterConfig.matlab_property || ""
+                if (prop.indexOf(".") !== -1) {
+                    var parts = prop.split('.')
+                    prop = parts[parts.length - 1]
+                }
+                return prop.length > 0 ? prop.replace(/_/g, " ") : parameterName
+            }
+            hasAddFeature: addFeatureEnabled
+            addPlaceholder: addFeatureEnabled ? "Add custom " + propertySuffix + "..." : ""
             isMultiSelect: parameterConfig.is_multi_select || false
             maxSelections: parameterConfig.max_selections || -1
-            allItems: parameterConfig.all_items || []
+            allItems: parameterConfig.all_items !== undefined ? parameterConfig.all_items : (parameterConfig.model || [])
             selectedItems: parameterConfig.selected_items || []
             dropdownState: editModeEnabled ? "edit" : "default"
 
@@ -115,26 +125,26 @@ Item {
     }
 
     Component {
-        id: triSliderComponent
+        id: stepRangeSliderComponent
 
-        TriSliderTemplate {
-            id: triSlider
-            sliderId: parameterConfig.parameter_name || "dynamic_tri_slider"
+        StepRangeSliderTemplate {
+            id: stepRangeSlider
+            sliderId: parameterConfig.parameter_name || "dynamic_step_range_slider"
             label: parameterConfig.label || parameterName
             matlabProperty: parameterConfig.matlab_property || ""
             from: parameterConfig.from || 0
             to: parameterConfig.to || 1
             firstValue: parameterConfig.first_value || parameterConfig.from || 0
-            secondValue: parameterConfig.second_value || (parameterConfig.from + parameterConfig.to) / 2 || 0.5
-            thirdValue: parameterConfig.third_value || parameterConfig.to || 1
+            secondValue: parameterConfig.second_value || parameterConfig.to || 1
             stepSize: parameterConfig.step_size || 0.1
             unit: parameterConfig.unit || ""
+            backgroundColor: parameterConfig.background_color || "white"
             sliderState: editModeEnabled ? "edit" : "default"
 
             onRangeChanged: {
-                dynamicParameterLoader.parameterChanged(parameterName, [firstValue, secondValue, thirdValue]);
+                dynamicParameterLoader.parameterChanged(parameterName, [firstValue, secondValue]);
                 // Auto-save to MATLAB
-                matlabExecutor.saveTriSliderPropertyToMatlab(parameterConfig.matlab_property, firstValue, secondValue, thirdValue, parameterConfig.step_size || 0.1, parameterConfig.unit || "");
+                matlabExecutor.saveRangeSliderPropertyToMatlab(parameterConfig.matlab_property, firstValue, secondValue, parameterConfig.unit || "");
             }
         }
     }
@@ -142,7 +152,7 @@ Item {
     // Function to get current parameter value
     function getCurrentValue() {
         if (parameterComponentLoader.item) {
-            if (parameterConfig.component_type === "RangeSliderTemplate") {
+            if (parameterConfig.component_type === "RangeSliderTemplate" || parameterConfig.component_type === "StepRangeSliderTemplate") {
                 return [parameterComponentLoader.item.firstValue, parameterComponentLoader.item.secondValue];
             } else if (parameterConfig.component_type === "DropdownTemplate") {
                 if (parameterComponentLoader.item.isMultiSelect) {
@@ -159,7 +169,7 @@ Item {
     function setValue(value) {
         if (!parameterComponentLoader.item) return;
 
-        if (parameterConfig.component_type === "RangeSliderTemplate" && Array.isArray(value) && value.length >= 2) {
+        if ((parameterConfig.component_type === "RangeSliderTemplate" || parameterConfig.component_type === "StepRangeSliderTemplate") && Array.isArray(value) && value.length >= 2) {
             parameterComponentLoader.item.firstValue = value[0];
             parameterComponentLoader.item.secondValue = value[1];
         } else if (parameterConfig.component_type === "DropdownTemplate") {

@@ -215,14 +215,15 @@ Item {
         }
 
         // Single-select interface
-        Row {
-            id: singleSelectRow
+        Column {
+            id: singleSelectColumn
             width: parent.width
-            spacing: 8
+            spacing: 5
             visible: !isMultiSelect
 
             // Custom display rectangle (consistent with multi-select)
             Rectangle {
+                id: singleSelectDisplay
                 width: parent.width
                 height: 30
                 color: "#f5f5f5"
@@ -260,7 +261,7 @@ Item {
                 id: comboBox
                 visible: false  // Hidden ComboBox for functionality
                 width: parent.width
-                height: 30
+                height: 0
                 model: dropdownTemplate.model
                 currentIndex: dropdownTemplate.currentIndex
 
@@ -290,15 +291,17 @@ Item {
             // Custom popup for single-select with add option
             Rectangle {
                 id: singleSelectPopup
+                objectName: "singleSelectPopup"
                 visible: false
                 width: parent.width
-                height: {
+                property int computedHeight: {
                     var addVisible = hasAddFeature && (dropdownTemplate.dropdownState === "edit" || dropdownTemplate.dropdownState === "add")
                     var itemCount = comboBox.model.length + (addVisible ? 1 : 0)
                     var contentHeight = itemCount * 25 + Math.max(0, itemCount - 1) * 2
                     var maxHeight = 8 * 25 + 7 * 2 + 10  // Max 8 options visible
                     return Math.min(contentHeight + 10, maxHeight)
                 }
+                height: visible ? computedHeight : 0
                 color: "white"
                 border.color: "#ccc"
                 border.width: 1
@@ -517,7 +520,10 @@ Item {
         // Multi-select popup
         Rectangle {
             id: multiSelectPopup
+            objectName: "multiSelectPopup"
             visible: false
+            x: 0
+            y: multiSelectDisplay.y + multiSelectDisplay.height
             width: parent.width
             height: {
                 var addVisible = hasAddFeature && (dropdownTemplate.dropdownState === "edit" || dropdownTemplate.dropdownState === "add")
@@ -822,8 +828,8 @@ Item {
 
     // Icons - only visible in edit mode, positioned to the right of the display
     Column {
-        x: (isMultiSelect ? multiSelectDisplay : singleSelectRow).x + (isMultiSelect ? multiSelectDisplay : singleSelectRow).width + 15
-        y: (isMultiSelect ? multiSelectDisplay : singleSelectRow).y + (isMultiSelect ? multiSelectDisplay : singleSelectRow).height / 2 - height / 2
+        x: (isMultiSelect ? multiSelectDisplay : singleSelectDisplay).x + (isMultiSelect ? multiSelectDisplay : singleSelectDisplay).width + 15
+        y: (isMultiSelect ? multiSelectDisplay : singleSelectDisplay).y + (isMultiSelect ? multiSelectDisplay : singleSelectDisplay).height / 2 - height / 2
         spacing: 5
         visible: dropdownState === "edit" || dropdownState === "add"
 

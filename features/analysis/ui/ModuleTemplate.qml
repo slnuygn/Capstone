@@ -13,6 +13,7 @@ Item {
     property var folderContents: []
     property string errorMessage: ""
     property string moduleName: ""  // Name used to find corresponding MATLAB file
+    property bool editModeEnabled: false  // Track edit mode state
     signal buttonClicked()
     default property alias expandedContent: contentContainer.data
 
@@ -116,15 +117,14 @@ Item {
                 var end = parseFloat(colonParts[colonParts.length - 1]);
 
                 if (!isNaN(start) && !isNaN(step) && !isNaN(end)) {
-                    config.component_type = 'TriSliderTemplate';
+                    config.component_type = 'StepRangeSliderTemplate';
                     config.label = paramName.replace(/_/g, ' ').replace(/\b\w/g, function(l) { return l.toUpperCase(); });
                     // Calculate appropriate range bounds (extend a bit beyond the actual range)
                     var range = end - start;
                     config.from = start - range * 0.1; // 10% below start
                     config.to = end + range * 0.1;    // 10% above end
                     config.first_value = start;
-                    config.second_value = start + (end - start) / 2; // middle point
-                    config.third_value = end;
+                    config.second_value = end;
                     config.step_size = step;
                     config.unit = paramName.toLowerCase().includes('time') || paramName.toLowerCase().includes('toi') ? 's' :
                                  paramName.toLowerCase().includes('freq') || paramName.toLowerCase().includes('foi') ? 'Hz' : '';
@@ -249,7 +249,7 @@ Item {
                     width: contentContainer.width
                     parameterName: modelData
                     parameterConfig: dynamicParameters[modelData]
-                    editModeEnabled: false  // TODO: Connect to global edit mode
+                    editModeEnabled: moduleTemplate.editModeEnabled
 
                     onParameterChanged: function(paramName, value) {
                         console.log("Parameter changed:", paramName, "=", value);
