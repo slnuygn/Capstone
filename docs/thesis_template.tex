@@ -1,0 +1,220 @@
+\documentclass[12pt]{report}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage{mathptmx} % Times New Roman font
+\usepackage{geometry}
+\geometry{a4paper, left=1in, top=1in, right=1in, bottom=1in}
+\usepackage{titlesec}
+\usepackage{setspace}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage[titletoc]{appendix}
+
+% Formatting Chapter Titles to Roman Numerals
+\titleformat{\chapter}[display]
+  {\normalfont\bfseries\centering}
+  {\chaptertitlename\ \thechapter}
+  {20pt}
+  {\Large}
+\renewcommand{\thechapter}{\Roman{chapter}}
+
+% Double spacing
+\doublespacing
+
+\begin{document}
+
+% Title Page
+\begin{titlepage}
+    \centering
+    \vspace*{1cm}
+    \Huge
+    \textbf{NeuroPAC: A Pre-Processing, Analysis, and Classification Pipeline Platform for EEG Signals}
+    
+    \vspace{1.5cm}
+    \Large
+    \textbf{Selin Uygun}
+    
+    \vfill
+    
+    A Thesis Submitted in Partial Fulfillment of the Requirements\\
+    for the Degree of Bachelor of Science in Software Engineering
+    
+    \vspace{0.8cm}
+    
+    \Large
+    Department of Software Engineering\\
+    Mugla Sitki Kocman University\\
+    
+\end{titlepage}
+
+% Abstract
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+\setcounter{page}{3} % Starting page number as requested
+(Abstract text goes here...)
+
+% Table of Contents
+\tableofcontents
+
+% List of Tables
+\listoftables
+\addcontentsline{toc}{chapter}{List of Tables}
+
+% List of Figures
+\listoffigures
+\addcontentsline{toc}{chapter}{List of Figures}
+
+% Chapter I
+\chapter{Introduction}
+
+\section{Problem Statement}
+The core difficulty in Electroencephalography (EEG) data analysis lies in the trade-off between power/flexibility and usability/accessibility. Here are some limitations of two existing and most popular state of the art tools that are used for EEG pre-processing and analysis:
+
+\begin{itemize}
+\item \textbf{Fieldtrip, Complexity of Code-Based Toolboxes:}   A high-performance, flexible toolbox like FieldTrip is essential for advanced analysis but rely on MATLAB code and scripting. This necessitates a high level of programming expertise, creating a significant barrier to entry and slowing down the research process for those whose primary focus is neuroscience or clinical application rather than coding and data structuring.
+
+\item \textbf{EEGLAB, Existing GUI Complexity:} While EEGLAB offers a Graphical User Interface (GUI), this interface can present a dense, overwhelming array of parameters, menus, and advanced options to a novice. This complexity often fails to make the fundamental, necessary workflow—preprocessing, processing, and classification—feel less intimidating or more welcoming to beginners.
+\end{itemize}
+
+There is a clear and persistent need for a dedicated, simplified interface that explicitly targets the essential and initial steps of EEG analysis, thereby democratizing the process.
+
+\begin{itemize}
+
+\item \textbf{Need for Simplified Workflow (Engineering Goal):} The study addresses the need for a streamlined, intuitive Graphical User Interface (GUI) designed to guide users through the crucial, initial steps of preprocessing, processing, and machine learning classification in a less intimidating manner. By building on the powerful computational back-end of toolboxes like FieldTrip, this GUI will abstract away the code, presenting only the core configuration options needed for a reproducible, foundational analysis.
+\item \textbf{Need for Clinical Validation and Application (Research Goal):} The efficacy of this simplified pipeline must be demonstrated in a real-world, high-stakes context. There is a need to validate this new streamlined analysis tool by successfully applying it to challenging neurological datasets, specifically in generating robust and clinically meaningful machine learning and deep learning classification results for conditions such as Parkinson's Disease and mild Traumatic Brain Injury (mTBI).
+ 
+\end{itemize}
+
+In summary, the basic difficulty is the lack of a user-friendly tool that simplifies the essential EEG analysis pipeline (preprocessing, feature extraction analysis, and classification). Existing tools are either highly code-dependent (FieldTrip) or still too complex for beginners (EEGLAB). The perceived need is thus the development of a simplified, welcoming user interface that leverages existing powerful toolboxes to make foundational EEG analysis accessible, efficient, and reproducible, with its utility confirmed through successful application and validation in classifying clinical cohorts like Parkinson's Disease and mTBI patients.
+
+\section{Purpose of the Study}
+The purpose of this study is two-fold: to address the usability gap in existing neuroscientific software and to validate the resulting platform through compelling clinical application.
+
+\begin{itemize}
+\item \textbf{Engineering Goal (Product):} To develop a user-centric Graphical User Interface (GUI) using Python that provides a streamlined, accessible, and intuitive workflow for the fundamental steps of EEG data analysis (preprocessing, processing, and classification). This GUI will abstract the complexities of code-based toolboxes like FieldTrip, thereby lowering the technical barrier to entry and welcoming new users to the field of neuroscience and EEG analysis.
+
+\item \textbf{Research Goal (Practical Outcomes):} To validate the utility and efficacy of the developed GUI and its integrated machine learning classification pipeline by generating meaningful, publishable findings. This includes providing example EEG data outcomes, specifically robust analysis results and accurate classification metrics for clinical datasets concerning Parkinson's Disease and mild Traumatic Brain Injury (mTBI).
+\end{itemize}
+
+The ultimate goal is to deliver a practical product that enhances the efficiency of the EEG analysis pipeline and produces high-quality, reproducible research outcomes.
+
+\section{Research Questions}
+\begin{itemize}
+\item \textbf{Usability and Accessibility:} Can a dedicated Python-based Graphical User Interface (GUI) be successfully developed to simplify the complex, code-based commands of established EEG toolboxes (e.g., FieldTrip), thereby providing an intuitive and streamlined workflow for the fundamental steps of preprocessing and processing?
+
+\item \textbf{Comparative Advantage:} How does the proposed streamlined GUI workflow compare to existing EEG analysis interfaces (e.g., EEGLAB) in terms of reducing complexity and improving user efficiency for individuals new to neuroscience and EEG data analysis?
+
+\item \textbf{Classification Efficacy (Parkinson's Disease):} What level of classification accuracy can the integrated machine learning classification pipeline achieve in reliably distinguishing EEG data from individuals with Parkinson's Disease compared to healthy controls?
+
+\item \textbf{Clinical Differentiation (mTBI):} Can the complete EEG analysis and classification platform successfully extract meaningful neurophysiological features and generate differentiating results to classify patients with mild Traumatic Brain Injury (mTBI) from control subjects?
+
+\item \textbf{Data Outcome Utility:} Does the developed platform effectively output clear, reproducible analysis results and visualization products (e.g., graphs, classification metrics) that aid neuroscientists and clinicians in interpreting the EEG data outcomes from clinical populations?
+\end{itemize}
+
+\section{Definition of Terms}
+(Content...)
+
+\section{Assumptions and Limitations of the Study}
+\begin{itemize}
+\item \textbf{Essential Software Environment:} The core functionality of the GUI relies on proprietary and third-party software being present. It is fundamentally assumed that the end-user has a valid license for MATLAB and that both MATLAB and the FieldTrip toolbox are correctly installed, configured, and accessible within the operating system environment. Without these prerequisites, the computational functions handled by the GUI cannot execute.
+
+\item \textbf{FieldTrip and MATLAB Reliability:} It is assumed that the underlying algorithms and functions within the FieldTrip toolbox are accurate, well-tested, and functioning correctly as documented by their developers. The study focuses on the interface and workflow, not on re-validating the internal processing logic of these established tools.
+
+\item \textbf{Data Quality:} It is assumed that the clinical EEG datasets used for validation (Parkinson's Disease and mTBI) were collected using standardized, ethical procedures and possess sufficient signal quality to yield meaningful, artifact-reduced data after the initial preprocessing steps.
+
+\item \textbf{Machine Learning Framework Stability:} It is assumed that the Python-based Machine Learning libraries (e.g., scikit-learn, etc.) that power the classification module will function stably and reliably throughout the study.
+
+\item \textbf{User Competency:} For any usability evaluation, it is assumed that users participating possess a basic familiarity with desktop computing and will apply a consistent effort when using the developed GUI compared to other analysis tools.
+\end{itemize}
+
+\section{Overview}
+(Content...)
+
+% Chapter II
+\chapter{Literature Review}
+
+\section{Introduction}
+(Content...)
+
+\section{Next Heading}
+(Content...)
+
+\section{Next Heading}
+(Content...)
+
+\section{Summary}
+(Content...)
+
+% Chapter III
+\chapter{Methodology}
+
+\section{Introduction}
+(Content...)
+
+\section{Research Question(s)}
+(Content...)
+
+\section{Research Design and Procedures}
+(Content...)
+
+\section{Population and Sample}
+(Content...)
+
+\section{Instrumentation}
+(Content...)
+
+\section{Data Analysis Procedures}
+(Content...)
+
+\section{Limitations}
+(Content...)
+
+\section{Summary}
+(Content...)
+
+% Chapter IV
+\chapter{Results}
+
+\section{Introduction}
+(Content...)
+
+\section{Data Analysis}
+(Content...)
+
+\section{Summary}
+(Content...)
+
+% Chapter V
+\chapter{Summary, Conclusions, and Recommendations}
+
+\section{Introduction}
+(Content...)
+
+\section{Summary of the Results}
+(Content...)
+
+\section{Conclusions}
+(Content...)
+
+\section{Recommendations}
+(Content...)
+
+% References
+\bibliographystyle{plain}
+\bibliography{references} 
+\addcontentsline{toc}{chapter}{References}
+
+% Appendices
+\begin{appendices}
+
+\chapter{Assessment Activity}
+(Content...)
+
+\chapter{Assessment Rubric}
+(Content...)
+
+\end{appendices}
+
+\end{document}
