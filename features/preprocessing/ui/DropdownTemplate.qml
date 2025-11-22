@@ -324,18 +324,20 @@ Item {
                         Repeater {
                             model: comboBox.model
                             delegate: Rectangle {
-                                width: parent.parent.parent.width
+                                width: singleSelectPopup.width
                                 height: 25
                                 color: comboBox.currentIndex === index ? "#e3f2fd" : (optionMouseArea.containsMouse ? "#f5f5f5" : "transparent")
 
-                                Row {
+                                Item {
                                     anchors.fill: parent
                                     anchors.leftMargin: 5
                                     anchors.rightMargin: 5
 
                                     Text {
                                         id: singleOptionText
-                                        width: dropdownTemplate.dropdownState === "edit" ? parent.width - 25 - 10 : parent.parent.parent.parent.parent.width  // Full width when not editing, adjusted for trash icon when editing
+                                        anchors.left: parent.left
+                                        anchors.right: dropdownTemplate.dropdownState === "edit" ? trashIcon.left : parent.right
+                                        anchors.rightMargin: dropdownTemplate.dropdownState === "edit" ? 8 : 0
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: modelData
                                         font.pixelSize: 12
@@ -347,6 +349,7 @@ Item {
                                     Text {
                                         id: trashIcon
                                         anchors.verticalCenter: parent.verticalCenter
+                                        anchors.right: parent.right
                                         width: 20
                                         height: 20
                                         horizontalAlignment: Text.AlignHCenter
@@ -381,7 +384,7 @@ Item {
                         // Add new item option (only when hasAddFeature is true and in edit/add mode)
                         Rectangle {
                             visible: hasAddFeature && (dropdownState === "edit" || dropdownState === "add")
-                            width: parent.parent.parent.width
+                            width: singleSelectPopup.width
                             height: singleAddInput.visible ? 30 : 25
                             color: "transparent"
 
@@ -552,7 +555,7 @@ Item {
 
                     // Include All option (only for multi-select with unlimited selections)
                     Rectangle {
-                        width: parent.parent.parent.width
+                        width: multiSelectPopup.width
                         height: maxSelections === 1 ? 0 : 25
                         visible: maxSelections !== 1
                         color: selectedItems.length === allItems.length ? "#e3f2fd" : "transparent"
@@ -609,19 +612,20 @@ Item {
                         model: allItems
 
                         Rectangle {
-                            width: parent.parent.parent.width
+                            width: multiSelectPopup.width
                             height: 25
                             color: selectedItems.indexOf(modelData) !== -1 ? "#e3f2fd" : (optionMouseArea.containsMouse ? "#f5f5f5" : "transparent")
 
-                            Row {
+                            Item {
                                 anchors.fill: parent
                                 anchors.leftMargin: 5
                                 anchors.rightMargin: 5
-                                spacing: 8
 
                                 Rectangle {
+                                    id: optionCheckbox
                                     width: 15
                                     height: 15
+                                    anchors.left: parent.left
                                     anchors.verticalCenter: parent.verticalCenter
                                     border.color: "#666"
                                     border.width: 1
@@ -638,7 +642,10 @@ Item {
 
                                 Text {
                                     id: optionText
-                                    width: dropdownTemplate.dropdownState === "edit" ? parent.width - 15 - 25 - 8 - 10 : parent.parent.parent.parent.parent.width  // Full width when not editing, adjusted for icons when editing
+                                    anchors.left: optionCheckbox.right
+                                    anchors.leftMargin: 8
+                                    anchors.right: dropdownTemplate.dropdownState === "edit" ? trashIcon.left : parent.right
+                                    anchors.rightMargin: dropdownTemplate.dropdownState === "edit" ? 8 : 0
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: modelData
                                     font.pixelSize: 12
@@ -650,6 +657,7 @@ Item {
                                 Text {
                                     id: trashIcon
                                     anchors.verticalCenter: parent.verticalCenter
+                                    anchors.right: parent.right
                                     width: 20
                                     height: 20
                                     horizontalAlignment: Text.AlignHCenter
@@ -702,7 +710,7 @@ Item {
                         // Add new item option (only when hasAddFeature is true and in edit/add mode)
                     Rectangle {
                         visible: hasAddFeature && (dropdownState === "edit" || dropdownState === "add")
-                        width: parent.parent.parent.width
+                        width: multiSelectPopup.width
                         height: addInput.visible ? 30 : 25
                         color: "transparent"
 

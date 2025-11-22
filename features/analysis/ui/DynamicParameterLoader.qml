@@ -20,6 +20,12 @@ Item {
         id: parameterComponentLoader
         width: parent.width / 3
 
+        onLoaded: {
+            if (parameterConfig.component_type === "DropdownTemplate" && parameterComponentLoader.item) {
+                adjustDropdownIconAlignment(parameterComponentLoader.item)
+            }
+        }
+
         sourceComponent: {
             if (!parameterConfig || !parameterConfig.component_type) {
                 return null;
@@ -36,6 +42,68 @@ Item {
                     return null;
             }
         }
+    }
+
+    // Align dropdown action icons with the actual visible display rectangle so
+    // they stay centered even when rendered via nested loaders.
+    function adjustDropdownIconAlignment(dropdownItem) {
+        if (!dropdownItem || !dropdownItem.children || dropdownItem.children.length < 2)
+            return;
+
+        var contentColumn = dropdownItem.children[0];
+        var iconColumn = dropdownItem.children[dropdownItem.children.length - 1];
+        
+        if (!contentColumn || !iconColumn)
+            return;
+
+        var saveIcon = iconColumn.children.length > 1 ? iconColumn.children[0] : null;
+
+        if (saveIcon) {
+            saveIcon.visible = Qt.binding(function() {
+                return dropdownItem.dropdownState === "add";
+            });
+
+            saveIcon.height = Qt.binding(function() {
+                return dropdownItem.dropdownState === "add" ? 25 : 0;
+            });
+        }
+
+        iconColumn.spacing = Qt.binding(function() {
+            return dropdownItem.dropdownState === "add" ? 5 : 0;
+        });
+
+        // Clear any existing anchor bindings that might conflict
+        iconColumn.anchors.verticalCenter = undefined;
+        iconColumn.anchors.top = undefined;
+        iconColumn.anchors.bottom = undefined;
+
+        // Manually calculate Y position to account for nested coordinates
+        iconColumn.y = Qt.binding(function() {
+            var displayRect = null;
+            var yOffset = 0;
+
+            if (dropdownItem.isMultiSelect) {
+                // MultiSelect: displayRect is direct child of contentColumn (index 2)
+                if (contentColumn.children.length > 2) {
+                    displayRect = contentColumn.children[2];
+                    yOffset = displayRect.y;
+                }
+            } else {
+                // SingleSelect: displayRect is inside singleSelectColumn (index 1)
+                var singleColumn = contentColumn.children.length > 1 ? contentColumn.children[1] : null;
+                if (singleColumn && singleColumn.children && singleColumn.children.length > 0) {
+                    displayRect = singleColumn.children[0];
+                    // Add singleColumn.y to offset because displayRect.y is relative to singleColumn
+                    yOffset = singleColumn.y + displayRect.y;
+                }
+            }
+
+            if (displayRect) {
+                // Center the icon column relative to the display rect
+                return yOffset + (displayRect.height - iconColumn.height) / 2;
+            }
+            return 0;
+        });
     }
 
     Component {
